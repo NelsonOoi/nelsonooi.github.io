@@ -33,7 +33,6 @@ github_username: NelsonOoi
 theme: jekyll-theme-image-grid
 plugins:
     - jekyll-feed
-    - jekyll-seo
 
 # grid_theme
 social_links:
