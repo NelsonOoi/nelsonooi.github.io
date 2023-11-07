@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+        <link rel="stylesheet" href="/assets/css/main.css" />
+        <link rel="stylesheet" href="/assets/flexmasonry/flexmasonry.css" />
+        <script src="/assets/flexmasonry/flexmasonry.js"></script>
+        <!-- Begin Jekyll SEO tag v2.7.1 -->
+<title>Nelson Ooi | Nelson’s homepage on the internet.</title>
+<meta name="generator" content="Jekyll v4.3.2" />
+<meta property="og:title" content="Nelson Ooi" />
+<meta name="author" content="Nelson Ooi" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="site-description" />
+<meta property="og:description" content="site-description" />
+<link rel="canonical" href="http://localhost:4000/projects/" />
+<meta property="og:url" content="http://localhost:4000/projects/" />
+<meta property="og:site_name" content="Nelson Ooi" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Nelson Ooi" />
+<script type="application/ld+json">
+{"author":{"@type":"Person","name":"Nelson Ooi"},"url":"http://localhost:4000/projects/","description":"site-description","@type":"WebPage","headline":"Nelson Ooi","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+    </head>
+    <body>
+        <section id="sidebar" class="sidebar"> 
+    <svg id="sidebar-fader"></svg>
+    <div class="sidebar-header">
+        
+            <div class="sidebar-image-container">
+                <img class="sidebar-image" src="/assets/images/IMG_cropped.jpeg" />
+            </div>
+        
+        <div class="sidebar-text">
+            <h1><a href="/projects/" class="fade-onclick">Nelson Ooi</a></h1>
+            <h6>site-description</h6>
+            
+                <div class="sidebar-tagline">
+                    Nelson's homepage on the internet.
+                </div>
+            
+        </div>
+    </div>
+    <div class="sidebar-links">
+        
+            <a href="https://github.com/NelsonOoi"><img class="github-image" src="/assets/images/GitHub-Mark-Light-64px.png"/>github</a>
+        
+        
+                / 
+        
+        
+            <a href="/resume" class="fade-onclick">resume</a>
+        
+    </div>
+</section> <section class="content">
+    <svg id="content-fader"></svg>
+    <div class="list-posts">
+        
+        <div class="list-post">
+            <a href="/2023/11/05/research.html" class="fade-onclick">
+                <div class="list-post-link">
+                    
+                    <img class="list-post-image" src="/assets/images/research/urtc.JPG" />
+                    
+                    <div class="list-post-info">
+                        <div class="list-post-title">Research</div>
+                        <div class="list-post-description">Post description</div>
+                    </div>
+                </div>
+            </a>
+            <!-- <div class="list-post-footer">
+                <span class="list-post-date">05 Nov 2023</span>
+                &middot;
+                <span class="list-post-tags">tags, which, relate, to, post</span>
+            </div> -->
+        </div>
+        
+        <div class="list-post">
+            <a href="/2023/11/05/presentations.html" class="fade-onclick">
+                <div class="list-post-link">
+                    
+                    <img class="list-post-image" src="/assets/images/presentation/arr_img.jpeg" />
+                    
+                    <div class="list-post-info">
+                        <div class="list-post-title">Presentations</div>
+                        <div class="list-post-description">Post description</div>
+                    </div>
+                </div>
+            </a>
+            <!-- <div class="list-post-footer">
+                <span class="list-post-date">05 Nov 2023</span>
+                &middot;
+                <span class="list-post-tags">ELI, ECC</span>
+            </div> -->
+        </div>
+        
+        <div class="list-post">
+            <a href="/2023/11/05/hardware-projects.html" class="fade-onclick">
+                <div class="list-post-link">
+                    
+                    <img class="list-post-image" src="/assets/images/hardware/mecc_pcb.PNG" />
+                    
+                    <div class="list-post-info">
+                        <div class="list-post-title">Hardware</div>
+                        <div class="list-post-description">Post description</div>
+                    </div>
+                </div>
+            </a>
+            <!-- <div class="list-post-footer">
+                <span class="list-post-date">05 Nov 2023</span>
+                &middot;
+                <span class="list-post-tags">hardware</span>
+            </div> -->
+        </div>
+        
+    </div>
+</section>
+<script src="/assets/js/post-grid-init.js"></script>
+ <script>
+    (function (root, factory) {
+        if (typeof define === 'function' && define.amd) {
+          define(function() {
+            return factory(root);
+          });
+        } else if (typeof exports === 'object') {
+          module.exports = factory;
+        } else {
+          root.echo = factory(root);
+        }
+      })(this, function (root) {
+      
+        'use strict';
+      
+        var echo = {};
+      
+        var callback = function () {};
+      
+        var offset, poll, delay, useDebounce, unload;
+      
+        var isHidden = function (element) {
+          return (element.offsetParent === null);
+        };
+        
+        var inView = function (element, view) {
+          if (isHidden(element)) {
+            return false;
+          }
+      
+          var box = element.getBoundingClientRect();
+          return (box.right >= view.l && box.bottom >= view.t && box.left <= view.r && box.top <= view.b);
+        };
+      
+        var debounceOrThrottle = function () {
+          if(!useDebounce && !!poll) {
+            return;
+          }
+          clearTimeout(poll);
+          poll = setTimeout(function(){
+            echo.render();
+            poll = null;
+          }, delay);
+        };
+      
+        echo.init = function (opts) {
+          opts = opts || {};
+          var offsetAll = opts.offset || 0;
+          var offsetVertical = opts.offsetVertical || offsetAll;
+          var offsetHorizontal = opts.offsetHorizontal || offsetAll;
+          var optionToInt = function (opt, fallback) {
+            return parseInt(opt || fallback, 10);
+          };
+          offset = {
+            t: optionToInt(opts.offsetTop, offsetVertical),
+            b: optionToInt(opts.offsetBottom, offsetVertical),
+            l: optionToInt(opts.offsetLeft, offsetHorizontal),
+            r: optionToInt(opts.offsetRight, offsetHorizontal)
+          };
+          delay = optionToInt(opts.throttle, 250);
+          useDebounce = opts.debounce !== false;
+          unload = !!opts.unload;
+          callback = opts.callback || callback;
+          echo.render();
+          if (document.addEventListener) {
+            root.addEventListener('scroll', debounceOrThrottle, false);
+            root.addEventListener('load', debounceOrThrottle, false);
+          } else {
+            root.attachEvent('onscroll', debounceOrThrottle);
+            root.attachEvent('onload', debounceOrThrottle);
+          }
+        };
+      
+        echo.render = function (context) {
+          var nodes = (context || document).querySelectorAll('[data-echo], [data-echo-background]');
+          var length = nodes.length;
+          var src, elem;
+          var view = {
+            l: 0 - offset.l,
+            t: 0 - offset.t,
+            b: (root.innerHeight || document.documentElement.clientHeight) + offset.b,
+            r: (root.innerWidth || document.documentElement.clientWidth) + offset.r
+          };
+          for (var i = 0; i < length; i++) {
+            elem = nodes[i];
+            if (inView(elem, view)) {
+      
+              if (unload) {
+                elem.setAttribute('data-echo-placeholder', elem.src);
+              }
+      
+              if (elem.getAttribute('data-echo-background') !== null) {
+                elem.style.backgroundImage = 'url(' + elem.getAttribute('data-echo-background') + ')';
+              }
+              else if (elem.src !== (src = elem.getAttribute('data-echo'))) {
+                elem.src = src;
+              }
+      
+              if (!unload) {
+                elem.removeAttribute('data-echo');
+                elem.removeAttribute('data-echo-background');
+              }
+      
+              callback(elem, 'load');
+            }
+            else if (unload && !!(src = elem.getAttribute('data-echo-placeholder'))) {
+      
+              if (elem.getAttribute('data-echo-background') !== null) {
+                elem.style.backgroundImage = 'url(' + src + ')';
+              }
+              else {
+                elem.src = src;
+              }
+      
+              elem.removeAttribute('data-echo-placeholder');
+              callback(elem, 'unload');
+            }
+          }
+          if (!length) {
+            echo.detach();
+          }
+        };
+      
+        echo.detach = function () {
+          if (document.removeEventListener) {
+            root.removeEventListener('scroll', debounceOrThrottle);
+          } else {
+            root.detachEvent('onscroll', debounceOrThrottle);
+          }
+          clearTimeout(poll);
+        };
+      
+        return echo;
+      
+      });
+    </script>
+    <script>
+        echo.init({
+          offset: 2500,
+          throttle: 250,
+          unload: false,
+          callback: function (element, op) {
+            //console.log(element, 'has been', op + 'ed')
+          }
+        });
+    </script>
+        <script type="text/javascript" src="/assets/lightbox/lightbox.js"></script>
+        <link rel="stylesheet" href="/assets/lightbox/lightbox.css" />
+        <script src="/assets/js/sidebar.js"></script>
+        <script src="/assets/js/fade-transitions.js"></script>
+        <script>
+            fadeInPage();
+        </script>
+    </body>
+</html>
