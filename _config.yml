@@ -36,6 +36,7 @@ author: Nelson Ooi
 lang: en-US
 # Build settings
 theme: arco
+# remote-theme: meebuhs/arco
 # theme: jekyll-theme-mint
 # theme: minima
 # theme: jekyll-theme-image-grid

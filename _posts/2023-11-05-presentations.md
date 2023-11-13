@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Presentations
-description: Post description
+description: Professional presentations
 # permalink: /projects/research
 # urls:
 # source: https://project.source/link/
