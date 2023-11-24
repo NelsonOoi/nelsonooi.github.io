@@ -55,6 +55,10 @@ p.serif {
     font-size: 20pt;
 }
 
+.small-space {
+    letter-spacing: -7px;
+}
+
 .red-font {
     color: red;
 }
