@@ -1,0 +1,108 @@
+@font-face {
+    font-family: Monabold;
+    src: url("./assets/fonts/MonaspaceNeon-SemiWideSemiBold.otf");
+}
+
+@font-face {
+    font-family: Monathin;
+    src: url("./assets/fonts/MonaspaceNeon-Light.otf");
+}
+
+@font-face {
+    font-family: PTMono;
+    src: url("./assets/fonts/PTMono-Regular.ttf");
+}
+
+@font-face {
+    font-family: Avenir;
+    src: url("./assets/fonts/Avenir.ttc");
+}
+
+@font-face {
+    font-family: Antonio;
+    src: url("./assets/fonts/Antonio-SemiBold.ttf");
+}
+
+.mona {
+    font-family: Monathin
+}
+
+.ptmono {
+    font-family: PTMono;
+}
+
+.antonio {
+    font-family: Antonio
+}
+
+p.sans {
+    font-family: Avenir
+}
+
+p.serif {
+    font-family: Monabold
+}
+
+.huge {
+    font-size: 70pt;
+}
+
+.large {
+    font-size: 30pt;
+}
+
+.medium {
+    font-size: 20pt;
+}
+
+.red-font {
+    color: red;
+}
+
+.white-font {
+    color: white;
+}
+
+.red-shadow {
+    filter: drop-shadow(2px 2px red);
+}
+
+
+.grow {
+    transition: transform 250ms ease-in-out;
+    transform-origin: middle;
+}
+
+.shrink {
+    transition: transform 200ms ease-in-out;
+    transform-origin: middle;
+}
+
+.tilt {
+    transition: transform 250ms ease-in-out;
+    transform-origin: middle;
+}
+
+.tilt:hover {
+    -webkit-transform: rotate(10deg);
+    -moz-transform: rotate(10deg);
+    -ms-transform: rotate(10deg);
+    -o-transform: rotate(10deg);
+    transform: rotate(10deg);
+}
+
+.slant {
+    -webkit-transform: rotate(-10deg);
+    -moz-transform: rotate(-10deg);
+    -ms-transform: rotate(-10deg);
+    -o-transform: rotate(-10deg);
+    transform: rotate(-10deg);
+}
+
+.grow:hover {
+    transform: scale(1.1);
+}
+
+.shrink:hover {
+    transform: scale(0.95);
+}
