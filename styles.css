@@ -47,6 +47,11 @@ p.serif {
     font-size: 70pt;
 }
 
+.huge-adjust {
+    font-size: 70pt;
+    font-size: 7vw;
+}
+
 .large {
     font-size: 30pt;
 }
