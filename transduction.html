@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transduction Reference Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --surface: #fff;
+      --border: #dee2e6;
+      --text: #212529;
+      --muted: #6c757d;
+      --accent: #4361ee;
+      --accent-light: #e8ecff;
+      --row-hover: #f1f3f5;
+      --tag-eo: #d4edda;
+      --tag-pom: #cce5ff;
+      --tag-om: #fff3cd;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1.5rem;
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      padding: 0.5rem 1.2rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.85rem;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+
+    .tab.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Controls */
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .controls-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .controls-header span {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    .controls-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .controls-actions button {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .controls-actions button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .col-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .col-toggle {
+      font-size: 0.78rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      background: var(--surface);
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+
+    .col-toggle.active {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Filter row */
+    .filter-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-row label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .type-btn {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .type-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Table */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    th:hover {
+      color: var(--accent);
+    }
+
+    th .sort-arrow {
+      font-size: 0.65rem;
+      margin-left: 3px;
+      opacity: 0.4;
+    }
+
+    th .sort-arrow.asc::after {
+      content: ' \25B2';
+    }
+
+    th .sort-arrow.desc::after {
+      content: ' \25BC';
+    }
+
+    th .sort-arrow.active {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    td {
+      padding: 0.5rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:hover td {
+      background: var(--row-hover);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .tag-eo {
+      background: var(--tag-eo);
+      color: #155724;
+    }
+
+    .tag-pom {
+      background: var(--tag-pom);
+      color: #004085;
+    }
+
+    .tag-om {
+      background: var(--tag-om);
+      color: #856404;
+    }
+
+    .tag-mhz {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+
+    .count {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    /* View toggle */
+    .view-toggle {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 1rem;
+    }
+
+    .view-btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.82rem;
+      border-radius: 4px;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+
+    .view-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Chart */
+    .chart-section {
+      margin-top: 1rem;
+    }
+
+    .chart-controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: end;
+    }
+
+    .chart-controls .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .chart-controls label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    .chart-controls select {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.82rem;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .chart-controls .cb-label {
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+      height: 480px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Transduction Reference Data</h1>
+
+  <div class="tabs" id="tabs"></div>
+  <div class="filter-row" id="filterRow"></div>
+
+  <div class="view-toggle">
+    <div class="view-btn active" id="viewTable" onclick="setView('table')">Table</div>
+    <div class="view-btn" id="viewChart" onclick="setView('chart')">Chart</div>
+  </div>
+
+  <div id="tableSection">
+    <div class="controls">
+      <div class="controls-header">
+        <span>Columns</span>
+        <div class="controls-actions">
+          <button onclick="selectAllCols()">All</button>
+          <button onclick="selectNoneCols()">None</button>
+        </div>
+      </div>
+      <div class="col-toggles" id="colToggles"></div>
+    </div>
+    <div class="count" id="rowCount"></div>
+    <div class="table-wrap">
+      <table id="dataTable">
+        <thead>
+          <tr id="tableHead"></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div><!-- end tableSection -->
+
+  <div id="chartSection" class="chart-section" style="display:none;">
+    <div class="chart-controls">
+      <div class="field">
+        <label>X Axis</label>
+        <select id="chartX" onchange="renderChart()"></select>
+      </div>
+      <div class="field">
+        <label>Y Axis</label>
+        <select id="chartY" onchange="renderChart()"></select>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <label class="cb-label"><input type="checkbox" id="logX" onchange="renderChart()"> Log X</label>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <label class="cb-label"><input type="checkbox" id="logY" checked onchange="renderChart()"> Log Y</label>
+      </div>
+      <div class="field">
+        <label>Color by</label>
+        <select id="chartColor" onchange="renderChart()">
+          <option value="type">type</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Size by</label>
+        <select id="chartSize" onchange="renderChart()">
+          <option value="__none__">-- none --</option>
+        </select>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="scatterCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // --- Embedded data ---
+    const DATASETS = {};
+
+    // Parse CSV (handles commas inside fields if needed)
+    function parseCSV(text) {
+      const lines = text.trim().split('\n').filter(l => l.trim());
+      if (!lines.length) return { headers: [], rows: [] };
+      // Simple split — but DOI fields and type fields may have commas inside parentheses
+      // Use a smarter split: split on commas not inside parens
+      function smartSplit(line) {
+        const parts = [];
+        let cur = '', depth = 0;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '(') depth++;
+          else if (c === ')') depth--;
+          else if (c === ',' && depth === 0) { parts.push(cur.trim()); cur = ''; continue; }
+          cur += c;
+        }
+        parts.push(cur.trim());
+        return parts;
+      }
+      const headers = smartSplit(lines[0]);
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = smartSplit(lines[i]);
+        if (vals.length < 2) continue;
+        const row = {};
+        headers.forEach((h, j) => { row[h] = vals[j] || ''; });
+        rows.push(row);
+      }
+      return { headers, rows };
+    }
+
+    const ref2CSV = `Table,Reference,Year,DOI,Material,Mech. Freq. \u03C9m/2\u03C0,Efficiency \u03B7,Cem,Com,Added noise,Bandwidth,Temperature,Qubit to optical,Type
+I,Andrews et al.,2014,https://doi.org/10.1038/nphys2911,Si3N4,560 kHz,8.6e-2,NR,NR,NR,30 kHz,4 K,no,MHz_EO
+I,Higginbotham et al.,2018,,Si3N4,1.47 MHz,0.47,66,66,38,12 kHz,35 mK,no,MHz_EO
+I,Arnold et al.,2020,https://doi.org/10.1038/s41467-020-18269-z,SOI,11.8 MHz,1.9e-4,0.57,0.9,~100,0.37 kHz,50 mK,no,MHz_EO
+I,Brubaker et al.,2022,https://doi.org/10.1103/PhysRevX.12.021062,Si3N4,1.45 MHz,0.47,680,770,3.2,2 kHz,40 mK,no,MHz_EO
+I,Delaney et al.,2022,,Si3N4,1.45 MHz,8e-4,4.5e3,2.2e4,23,6.1 kHz,40 mK,yes,MHz_EO
+I,Han et al.,2020,,AlN,10.22 GHz,7.3e-4,7.4,0.4,NR,1 MHz,0.9 K,no,OM(microdisk,bar)
+I,Yoon et al.,2023,,CaF2,11.37 GHz,1.2e-8,5.6e-8,~1,NR,500 kHz,4 K,no,OM(microdisk,bar)
+I,Blesin et al.,2024,https://doi.org/10.1038/s41467-024-49467-8,Si3N4,3.48 GHz,1.6e-5,-,NR,NR,25 MHz,300 K,no,OM(microdisk,bar)
+II,Vainsencher et al.,2016,https://doi.org/10.1063/1.4955408,AlN,3.78 GHz,~1e-8,-,3e-3,NR,~1 MHz,300 K,no,POM
+II,Forsch et al.,2020,https://doi.org/10.1038/s41567-019-0673-7,GaAs,2.7 GHz,5.5e-12,-,1.7,NR,~1 MHz,20 mK,no,POM
+II,Jiang et al.,2020,https://doi.org/10.1038/s41467-020-14863-3,LiNbO3,1.85 GHz,1.1e-5,-,6.6e-3,NR,~1 MHz,300 K,no,POM
+II,Mirhosseini et al.,2020,,AlN,5.16 GHz,8.8e-6,-,1.9e-2,0.57,1 MHz,15 mK,yes,POM
+II,Stockill et al.,2022,,GaP,2.81 GHz,6.8e-8,-,1.74,0.55,~0.1 MHz,10 mK,no,POM
+II,Jiang et al.,2023,,LiNbO3,3.60 GHz,4.9e-2,0.21,0.30,~100,1.5 MHz,10 mK,no,POM
+II,Weaver et al.,2024,,LiNbO3,5.04 GHz,9e-3,24.2,NR,6.2,14.8 MHz,25 mK,no,POM
+II,van Thiel et al.,2025,,LiNbO3,5.19 GHz,3.3e-3,NR,NR,2e3,4.7 MHz,25 mK,yes,POM
+II,Zhao et al.,2025,https://doi.org/10.1038/s41565-025-01874-8,SOI,5.07 GHz,2.2e-2,NR,NR,0.94,88.9 kHz,30 mK,no,POM
+III,Rueda et al.,2016,,LiNbO3 (Bulk),NR,1.1e-3,4e-3,NR,NR,~1 MHz,300 K,no,EO
+III,Fan et al.,2018,,AlN,NR,2e-2,0.073,NR,NR,0.59 MHz,2 K,no,EO
+III,Holzgrafe et al.,2020,,LiNbO3 (Thin film),NR,2.7e-5,NR,NR,NR,13 MHz,1 K,no,EO
+III,McKenna et al.,2020,,LiNbO3 (Thin film),NR,6.6e-6,NR,NR,NR,20 MHz,1 K,no,EO
+III,Hease et al.,2020,https://doi.org/10.1103/PRXQuantum.1.020315,LiNbO3 (Bulk),NR,3e-4,1.67e-3,NR,1.1,10.7 MHz,7 mK,no,EO
+III,Sahu et al.,2022,,LiNbO3 (Bulk),NR,1.5e-2,0.38,NR,0.41,24 MHz,60 mK,no,EO
+III,Arnold et al.,2025,,LiNbO3 (Bulk),NR,3e-3,NR,NR,NR,~10 MHz,10 mK,yes,EO
+III,Warner et al.,2025,,LiNbO3 (Thin film),NR,1.18e-2,1.16e-2,NR,<0.12,30 MHz,14 mK,yes,EO`;
+
+    const refCentralCSV = `Reference,Year,DOI,Platform,g0/2\u03C0 (Hz),\u03BA/2\u03C0 (Hz),\u03B3/2\u03C0 (Hz),C0 = 4g0\u00B2/(\u03BA\u03B3),\u03B7o = \u03BAe/\u03BA,\u03B7m = \u03B3\u03BC/\u03B3,\u03B70 = 4\u03B7o\u03B7mC0,\u03B7int = 4C/(1+C)\u00B2,\u03B7eo,\u03B7oe,\u03B7blue,Ppump,Ebit (J),Equbit (J),type
+Vainsencher et al.,2016,https://doi.org/10.1063/1.4955408,AlN,1.1E+05,1.5E+10,5E+06,7E-07,69%,~2E-04,~3.7E-10,6.5E-03,9E-08,2E-08,,~60 \u00B5W (\u03B7eo); ~110 \u00B5W (\u03B7oe),1.4E-11,1.3E-06,POM
+Balram et al.,2016,https://doi.org/10.1038/nphoton.2016.46,GaAs,1.1E+06,5.2E+09,1.7E+06,5.4E-04,23%,3E-10,1.5E-13,,,,,,7.5E-09,8.3E-03,POM
+Forsch et al.,2020,https://doi.org/10.1038/s41567-019-0673-7,GaAs (20 mK),1.3E+06,5.8E+09,2E+05,5.9E-03,65%,3.6E-10,5.5E-12,7.2E-02,,5.5E-12,,~0.5 \u00B5W,6.3E-09,9.7E-04,POM
+Jiang et al.,2019,https://doi.org/10.1364/OPTICA.6.000845,LN,1.2E+05,7.8E+08,5E+05,1.5E-04,29%,1.8E-08,3E-12,~1e-2,,~1e-10,,~3 \u00B5W,2E-09,1.9E-04,POM
+Shao et al.,2019,https://doi.org/10.1364/OPTICA.6.001498,LN,1.1E+03,9.5E+07,1.3E+06,4E-08,15%,1.7E-01,4E-09,7E-04,,,1.7E-05,1 mW,1.4E-11,7.8E-09,POM
+Jiang et al.,2020,https://doi.org/10.1038/s41467-020-14863-3,LN,8E+04,1.2E+09,1.9E+06,1.2E-05,66%,1E-03,3.2E-08,2.6E-02,1.1E-05,1.1E-05,5.5E-02,3.3 \u00B5W (red); 323 \u00B5W (blue),9.7E-14,3.5E-09,POM`;
+
+    DATASETS['ref2'] = parseCSV(ref2CSV);
+    DATASETS['ref_central'] = parseCSV(refCentralCSV);
+
+    // --- State ---
+    let activeDataset = 'ref2';
+    let visibleCols = new Set();
+    let sortCol = null;
+    let sortDir = 'asc';
+    let activeTypes = new Set(); // empty = all
+
+    // --- Init ---
+    function init() {
+      renderTabs();
+      switchDataset('ref2');
+    }
+
+    function renderTabs() {
+      const el = document.getElementById('tabs');
+      const labels = { ref2: 'Survey Comparison (ref2)', ref_central: 'Central Parameters (ref_central)' };
+      el.innerHTML = '';
+      for (const key of Object.keys(DATASETS)) {
+        const btn = document.createElement('div');
+        btn.className = 'tab' + (key === activeDataset ? ' active' : '');
+        btn.textContent = labels[key] || key;
+        btn.onclick = () => switchDataset(key);
+        el.appendChild(btn);
+      }
+    }
+
+    function switchDataset(key) {
+      activeDataset = key;
+      sortCol = null; sortDir = 'asc';
+      activeTypes.clear();
+      const ds = DATASETS[key];
+      visibleCols = new Set(ds.headers.filter(h => h !== 'DOI'));
+      renderTabs();
+      renderFilters();
+      renderColToggles();
+      renderTable();
+      if (currentView === 'chart') { populateChartSelectors(); renderChart(); }
+    }
+
+    function getTypes() {
+      const ds = DATASETS[activeDataset];
+      const types = new Set();
+      ds.rows.forEach(r => { if (r.type) types.add(r.type.trim()); });
+      return [...types].sort();
+    }
+
+    function renderFilters() {
+      const el = document.getElementById('filterRow');
+      const types = getTypes();
+      if (!types.length) { el.innerHTML = ''; return; }
+      let html = '<label>Type:</label>';
+      html += `<div class="type-btn ${activeTypes.size === 0 ? 'active' : ''}" onclick="filterType('__all__')">All</div>`;
+      types.forEach(t => {
+        html += `<div class="type-btn ${activeTypes.has(t) ? 'active' : ''}" onclick="filterType('${t}')">${t}</div>`;
+      });
+      el.innerHTML = html;
+    }
+
+    function filterType(t) {
+      if (t === '__all__') { activeTypes.clear(); }
+      else {
+        if (activeTypes.has(t)) activeTypes.delete(t);
+        else activeTypes.add(t);
+      }
+      renderFilters();
+      renderTable();
+      if (currentView === 'chart') renderChart();
+    }
+
+    function renderColToggles() {
+      const el = document.getElementById('colToggles');
+      const ds = DATASETS[activeDataset];
+      el.innerHTML = '';
+      ds.headers.forEach(h => {
+        const btn = document.createElement('div');
+        btn.className = 'col-toggle' + (visibleCols.has(h) ? ' active' : '');
+        btn.textContent = h;
+        btn.onclick = () => { toggleCol(h); };
+        el.appendChild(btn);
+      });
+    }
+
+    function toggleCol(h) {
+      if (visibleCols.has(h)) visibleCols.delete(h);
+      else visibleCols.add(h);
+      renderColToggles();
+      renderTable();
+    }
+
+    function selectAllCols() {
+      DATASETS[activeDataset].headers.forEach(h => visibleCols.add(h));
+      renderColToggles(); renderTable();
+    }
+    function selectNoneCols() {
+      visibleCols.clear();
+      // Always keep Reference visible
+      visibleCols.add(DATASETS[activeDataset].headers.find(h => h.toLowerCase().includes('reference')) || DATASETS[activeDataset].headers[0]);
+      renderColToggles(); renderTable();
+    }
+
+    function getFilteredRows() {
+      const ds = DATASETS[activeDataset];
+      let rows = ds.rows;
+      if (activeTypes.size > 0) {
+        rows = rows.filter(r => activeTypes.has((r.type || '').trim()));
+      }
+      if (sortCol) {
+        rows = [...rows].sort((a, b) => {
+          let va = a[sortCol] || '', vb = b[sortCol] || '';
+          // Try numeric comparison
+          const na = parseNum(va), nb = parseNum(vb);
+          if (na !== null && nb !== null) {
+            return sortDir === 'asc' ? na - nb : nb - na;
+          }
+          // Push empty/NR to bottom
+          if (va === 'NR' || va === '-' || va === '') va = '\uffff';
+          if (vb === 'NR' || vb === '-' || vb === '') vb = '\uffff';
+          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+      }
+      return rows;
+    }
+
+    function parseNum(s) {
+      if (!s) return null;
+      let v = s.replace(/^[~<>]/g, '').trim();
+      if (v.endsWith('%')) { v = v.slice(0, -1); return parseFloat(v) / 100; }
+      // SI unit suffixes
+      const units = {
+        'THz': 1e12, 'GHz': 1e9, 'MHz': 1e6, 'kHz': 1e3, 'Hz': 1,
+        'mK': 1e-3, 'K': 1, 'mW': 1e-3, 'W': 1, '\u00B5W': 1e-6, 'uW': 1e-6
+      };
+      for (const [suffix, factor] of Object.entries(units)) {
+        if (v.endsWith(suffix)) {
+          const n = parseFloat(v.slice(0, -suffix.length).trim());
+          return isNaN(n) ? null : n * factor;
+        }
+      }
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    }
+
+    function renderTable() {
+      const ds = DATASETS[activeDataset];
+      const cols = ds.headers.filter(h => visibleCols.has(h));
+      const rows = getFilteredRows();
+
+      // Header
+      const thead = document.getElementById('tableHead');
+      thead.innerHTML = '';
+      cols.forEach(h => {
+        const th = document.createElement('th');
+        th.innerHTML = escHtml(h) + `<span class="sort-arrow ${sortCol === h ? 'active ' + sortDir : ''}"></span>`;
+        th.onclick = () => {
+          if (sortCol === h) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+          else { sortCol = h; sortDir = 'asc'; }
+          renderTable();
+        };
+        thead.appendChild(th);
+      });
+
+      // Body
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        cols.forEach(h => {
+          const td = document.createElement('td');
+          const val = (row[h] || '').trim();
+          const lh = h.toLowerCase();
+
+          if (lh === 'doi' && val && val.startsWith('http')) {
+            td.innerHTML = `<a href="${escAttr(val)}" target="_blank" rel="noopener">link</a>`;
+          } else if (lh === 'reference' && row['DOI'] && row['DOI'].trim().startsWith('http')) {
+            td.innerHTML = `<a href="${escAttr(row['DOI'].trim())}" target="_blank" rel="noopener">${escHtml(val)}</a>`;
+          } else if (lh === 'type') {
+            td.innerHTML = typeTag(val);
+          } else if (lh === 'qubit_to_optical') {
+            td.innerHTML = val === 'yes'
+              ? '<span style="color:#155724;font-weight:600">yes</span>'
+              : '<span style="color:var(--muted)">no</span>';
+          } else {
+            td.textContent = val;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('rowCount').textContent = `Showing ${rows.length} of ${ds.rows.length} entries`;
+    }
+
+    function typeTag(t) {
+      if (!t) return '';
+      const lt = t.toLowerCase();
+      let cls = 'tag';
+      if (lt === 'eo') cls += ' tag-eo';
+      else if (lt === 'pom') cls += ' tag-pom';
+      else if (lt.includes('om')) cls += ' tag-om';
+      else if (lt.includes('mhz') || lt.includes('eo')) cls += ' tag-mhz';
+      return `<span class="${cls}">${escHtml(t)}</span>`;
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function escAttr(s) {
+      return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
+    // --- View toggle ---
+    let currentView = 'table';
+    function setView(v) {
+      currentView = v;
+      document.getElementById('tableSection').style.display = v === 'table' ? '' : 'none';
+      document.getElementById('chartSection').style.display = v === 'chart' ? '' : 'none';
+      document.getElementById('viewTable').className = 'view-btn' + (v === 'table' ? ' active' : '');
+      document.getElementById('viewChart').className = 'view-btn' + (v === 'chart' ? ' active' : '');
+      if (v === 'chart') { populateChartSelectors(); renderChart(); }
+    }
+
+    // --- Chart ---
+    let chartInstance = null;
+    const TYPE_COLORS = {
+      'EO': '#2d6a4f',
+      'POM': '#1d3557',
+      'MHz_EO': '#6c757d',
+      'OM(microdisk,bar)': '#b5651d',
+    };
+    const FALLBACK_COLORS = ['#e63946', '#457b9d', '#2a9d8f', '#e9c46a', '#264653', '#f4a261'];
+
+    function getNumericCols() {
+      const ds = DATASETS[activeDataset];
+      // A column is "numeric" if at least 2 rows parse to a number
+      return ds.headers.filter(h => {
+        let count = 0;
+        for (const r of ds.rows) { if (parseNum(r[h]) !== null) count++; }
+        return count >= 2;
+      });
+    }
+
+    function getCategoryCols() {
+      const ds = DATASETS[activeDataset];
+      return ds.headers.filter(h => {
+        const vals = new Set(ds.rows.map(r => (r[h] || '').trim()).filter(Boolean));
+        return vals.size >= 2 && vals.size <= 15;
+      });
+    }
+
+    function populateChartSelectors() {
+      const numCols = getNumericCols();
+      const catCols = getCategoryCols();
+
+      const xSel = document.getElementById('chartX');
+      const ySel = document.getElementById('chartY');
+      const colorSel = document.getElementById('chartColor');
+      const sizeSel = document.getElementById('chartSize');
+
+      xSel.innerHTML = numCols.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+      ySel.innerHTML = numCols.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+      colorSel.innerHTML = catCols.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+      sizeSel.innerHTML = '<option value="__none__">-- none --</option>' +
+        numCols.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+
+      // Pick sensible defaults
+      const ds = DATASETS[activeDataset];
+      if (activeDataset === 'ref2') {
+        const yi = numCols.indexOf('Efficiency_\u03B7');
+        if (yi >= 0) ySel.selectedIndex = yi;
+        const xi = numCols.indexOf('Year');
+        if (xi >= 0) xSel.selectedIndex = xi;
+      } else {
+        const yi = numCols.findIndex(c => c.includes('Ebit'));
+        if (yi >= 0) ySel.selectedIndex = yi;
+        const xi = numCols.findIndex(c => c.includes('g0'));
+        if (xi >= 0) xSel.selectedIndex = xi;
+      }
+      // Default color to type
+      const ti = catCols.indexOf('type');
+      if (ti >= 0) colorSel.selectedIndex = ti;
+    }
+
+    function renderChart() {
+      const ds = DATASETS[activeDataset];
+      const rows = getFilteredRows();
+      const xCol = document.getElementById('chartX').value;
+      const yCol = document.getElementById('chartY').value;
+      const colorCol = document.getElementById('chartColor').value;
+      const sizeCol = document.getElementById('chartSize').value;
+      const logX = document.getElementById('logX').checked;
+      const logY = document.getElementById('logY').checked;
+
+      // Group by color category
+      const groups = {};
+      const sizeVals = [];
+      rows.forEach(r => {
+        const xv = parseNum(r[xCol]);
+        const yv = parseNum(r[yCol]);
+        if (xv === null || yv === null) return;
+        if (logX && xv <= 0) return;
+        if (logY && yv <= 0) return;
+        const cat = (r[colorCol] || 'unknown').trim();
+        if (!groups[cat]) groups[cat] = [];
+        let sz = null;
+        if (sizeCol !== '__none__') {
+          sz = parseNum(r[sizeCol]);
+          if (sz !== null) sizeVals.push(Math.abs(sz));
+        }
+        const ref = (r['Reference'] || r[ds.headers[0]] || '').trim();
+        groups[cat].push({ x: xv, y: yv, ref, sz, row: r });
+      });
+
+      // Normalize sizes
+      const sizeMin = Math.min(...sizeVals) || 1;
+      const sizeMax = Math.max(...sizeVals) || 1;
+      function pointRadius(sz) {
+        if (sz === null) return 6;
+        const norm = (Math.log10(Math.abs(sz) + 1e-30) - Math.log10(sizeMin + 1e-30)) /
+          (Math.log10(sizeMax + 1e-30) - Math.log10(sizeMin + 1e-30) + 1e-10);
+        return 4 + norm * 14;
+      }
+
+      // Build datasets
+      let colorIdx = 0;
+      const chartDatasets = Object.keys(groups).map(cat => {
+        const color = TYPE_COLORS[cat] || FALLBACK_COLORS[colorIdx++ % FALLBACK_COLORS.length];
+        const pts = groups[cat];
+        return {
+          label: cat,
+          data: pts.map(p => ({ x: p.x, y: p.y })),
+          backgroundColor: color + 'cc',
+          borderColor: color,
+          borderWidth: 1.5,
+          pointRadius: pts.map(p => pointRadius(p.sz)),
+          pointHoverRadius: pts.map(p => pointRadius(p.sz) + 3),
+          _refs: pts.map(p => p.ref),
+          _rows: pts.map(p => p.row),
+        };
+      });
+
+      if (chartInstance) chartInstance.destroy();
+
+      const ctx = document.getElementById('scatterCanvas').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets: chartDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: true },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const ds = context.dataset;
+                  const ref = ds._refs[context.dataIndex];
+                  const row = ds._rows[context.dataIndex];
+                  const lines = [ref];
+                  const year = row['Year'] || '';
+                  const sys = row['System'] || row['Platform'] || '';
+                  const dtype = row['type'] || '';
+                  if (year) lines.push(`Year: ${year}`);
+                  if (sys) lines.push(`System: ${sys}`);
+                  if (dtype) lines.push(`Type: ${dtype}`);
+                  lines.push(`${xCol}: ${fmtTooltip(context.parsed.x, xCol)}`);
+                  lines.push(`${yCol}: ${fmtTooltip(context.parsed.y, yCol)}`);
+                  if (sizeCol !== '__none__' && row[sizeCol]) {
+                    lines.push(`${sizeCol}: ${row[sizeCol]}`);
+                  }
+                  return lines;
+                },
+                title: () => ''
+              }
+            },
+            legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } }
+          },
+          scales: {
+            x: {
+              type: logX ? 'logarithmic' : 'linear',
+              title: { display: true, text: xCol, font: { size: 13 } },
+              grid: { color: '#dee2e6' },
+              ticks: {
+                callback: function (v) {
+                  if (Number.isInteger(v) && v > 1900 && v < 2100) return String(v);
+                  if (logX && isMajorTick(v)) return formatPow10(v);
+                  if (logX) return '';
+                  return formatSci(v);
+                },
+                autoSkip: false,
+                maxRotation: 0,
+              },
+            },
+            y: {
+              type: logY ? 'logarithmic' : 'linear',
+              title: { display: true, text: yCol, font: { size: 13 } },
+              grid: { color: '#dee2e6' },
+              ticks: {
+                callback: function (v) {
+                  if (Number.isInteger(v) && v > 1900 && v < 2100) return String(v);
+                  if (logY && isMajorTick(v)) return formatPow10(v);
+                  if (logY) return '';
+                  return formatSci(v);
+                },
+                autoSkip: false,
+                maxRotation: 0,
+              },
+            }
+          }
+        }
+      });
+    }
+
+    // Format tooltip value: keep year-like values as plain integers
+    function fmtTooltip(v, colName) {
+      if (colName.toLowerCase() === 'year' || (Number.isInteger(v) && v > 1900 && v < 2100)) return String(v);
+      return v.toExponential(2);
+    }
+
+    // Format number in scientific notation for linear-scale axes
+    function formatSci(v) {
+      if (v === 0) return '0';
+      const abs = Math.abs(v);
+      if (abs >= 1e4 || (abs > 0 && abs < 0.01)) return formatPow10(v);
+      return v;
+    }
+
+    // Format a number as "10^n" or "k x 10^n" for log-scale ticks
+    function formatPow10(v) {
+      if (v === 0) return '0';
+      const exp = Math.floor(Math.log10(Math.abs(v)) + 1e-10);
+      const mantissa = v / Math.pow(10, exp);
+      const m = Math.round(mantissa * 10) / 10;
+      if (Math.abs(m - 1) < 0.05) return '10' + superscript(exp);
+      return m + '\u00D710' + superscript(exp);
+    }
+
+    function superscript(n) {
+      const map = {
+        '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074',
+        '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079', '-': '\u207B'
+      };
+      return String(n).split('').map(c => map[c] || c).join('');
+    }
+
+    // Major tick = exact power of 10 (1, 10, 100, 0.1, 0.01, etc.)
+    function isMajorTick(v) {
+      if (v <= 0) return false;
+      const log = Math.log10(v);
+      return Math.abs(log - Math.round(log)) < 0.01;
+    }
+
+    init();
+  </script>
+</body>
+
+</html>
