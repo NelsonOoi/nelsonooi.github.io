@@ -125,12 +125,19 @@ a:hover {
 }
 
 /* Index page */
+.index-wrapper {
+    max-width: 720px;
+    padding: 0 1.5rem;
+}
+
 .portrait-wrapper {
     perspective: 600px;
 }
 
 #portrait {
     width: 200px;
+    max-width: 200px;
+    height: auto;
     display: block;
     will-change: transform;
     transition: transform 50ms ease-out;
