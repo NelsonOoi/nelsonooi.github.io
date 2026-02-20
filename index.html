@@ -4,91 +4,76 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nelson Ooi</title>
+    <title>nelson ooi</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <section class="section pb-5">
-        <div class="container">
-            <nav class="level">
+    <section class="section">
+        <div class="container" style="max-width: 720px;">
 
-                <div class="level-left slant">
-                    <p class="ptmono has-background-white pl-2">
-                        hi there! <br>
-                        welcome to my 🏠 on the internet. <br>
-                        i'm a <strong class="ptmono"><em>quantum information science researcher</em></strong>,<br> who
-                        loves to build and code. <br>
-                        here's my <a href="resume.html" class="red-font"><strong>resume + cv</strong></a>, reach me on
-                        <a href="https://www.linkedin.com/in/nelson-ooi" class="red-font"><strong>linkedin</strong></a>
-                        and <a href="https://www.github.com/NelsonOoi" class="red-font"><strong>github</strong></a>!
-                    </p>
-                </div>
-
-                <!-- <div class="level-left slant">
-                    <p class="ptmono has-background-white pl-2">
-                        hi there! <br>
-                        welcome to my 🏠 on the internet. <br>
-                        i'm a <strong class="ptmono"><em>quantum information science researcher</em></strong>,<br>
-                        <strong class="ptmono">hardware engineer</strong>, and <strong class="ptmono">self-taught app
-                            designer</strong>. <br>
-                        here's my <a href="resume.html" class="red-font"><strong>resume + cv</strong></a>, reach me on
-                        <a href="https://www.linkedin.com/in/nelson-ooi" class="red-font"><strong>linkedin</strong></a>
-                        and <a href="https://www.github.com/NelsonOoi" class="red-font"><strong>github</strong></a>!
-                    </p>
-                </div> -->
-
-                <div class="level-right">
-                    <div class="level-item has-text-right is-3">
-                        <h1 class="title huge-adjust mona red-shadow has-text-white grow">
-                            Nelson<br>Ooi
-                        </h1>
-                    </div>
-                    <div class="level-item has-text-right grow">
-                        <div class="is-3 tilt">
-                            <img src="./assets/images/img.png" width="250" />
-                        </div>
-                    </div>
-                </div>
-
-            </nav>
-        </div>
-    </section>
-    <section>
-        <div class="container is-widescreen">
-            <div class="columns has has-text-white ptmono">
-                <div class="column shrink">
-                    <a href="research.html" class="red-font">
-                        <img src="./assets/images/research/experiment.JPG">
-                        Research
-                    </a>
-                </div>
-                <div class="column shrink">
-                    <a href="publications.html" class="red-font">
-                        <img src="./assets/images/research/urtc.JPG">
-                        Publications
-                    </a>
-                </div>
-                <div class="column shrink">
-                    <a href="presentations.html" class="red-font">
-                        <img src="./assets/images/presentation/ecc/arr_img_2_cropped.jpg">
-                        <!-- <img src="./assets/images/presentation/qiskitfallfest/qiskitfallfest.jpg"> -->
-                        Presentations
-                    </a>
-                </div>
-                <div class="column shrink">
-                    <a href="projects.html" class="red-font">
-                        <img src="./assets/images/hardware/mecc_pcb/mecc_pcb_cropped.png">
-                        Bits, bytes, and boards
-                        <br>
-                        Hardware & Software
-                    </a>
-                </div>
+            <div class="mb-5 portrait-wrapper">
+                <img src="./assets/images/img.png" id="portrait" alt="Nelson Ooi" />
             </div>
-        </div>
 
+            <h1 class="site-title mona mb-4">
+                nelson ooi
+            </h1>
+
+            <p class="ptmono mb-5 intro-text">
+                hi there! <br>
+                welcome to my 🏠 on the internet.
+            </p>
+
+            <nav class="mb-5">
+                <ul class="link-list ptmono">
+                    <li><a href="resume.html">resume + cv</a></li>
+                    <li><a href="https://www.linkedin.com/in/nelson-ooi">linkedin</a></li>
+                    <li><a href="https://www.github.com/NelsonOoi">github</a></li>
+                </ul>
+            </nav>
+
+            <nav>
+                <ul class="link-list ptmono">
+                    <li><a href="research.html">research</a></li>
+                    <li><a href="publications.html">publications</a></li>
+                    <li><a href="presentations.html">presentations</a></li>
+                    <li><a href="projects.html">bits, bytes, and boards</a></li>
+                </ul>
+            </nav>
+
+        </div>
     </section>
+
+    <script>
+    (function() {
+        const img = document.getElementById('portrait');
+        let rx = 0, ry = 0, tx = 0, ty = 0;
+        const MAX = 15;
+
+        document.addEventListener('mousemove', function(e) {
+            tx = ((e.clientY / window.innerHeight) - 0.5) * -MAX;
+            ty = ((e.clientX / window.innerWidth) - 0.5) * MAX;
+        });
+
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', function(e) {
+                if (e.gamma === null) return;
+                ty = (e.gamma / 90) * MAX;
+                tx = ((e.beta - 45) / 90) * -MAX;
+            });
+        }
+
+        function animate() {
+            rx += (tx - rx) * 0.08;
+            ry += (ty - ry) * 0.08;
+            img.style.transform = 'perspective(600px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
+            requestAnimationFrame(animate);
+        }
+        animate();
+    })();
+    </script>
 </body>
 
 </html>
