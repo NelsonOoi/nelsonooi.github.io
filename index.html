@@ -1,78 +1,76 @@
 <!DOCTYPE html>
-<html class="has-background-black">
+<html>
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>nelson ooi</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
     <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: #000;
+            margin: 0;
+            padding: 2.5rem 5.5rem;
+        }
+    </style>
 </head>
 
 <body>
-    <section class="section">
-        <div class="index-wrapper">
+    <div class="portrait-wrapper mb-5">
+        <img src="./assets/images/img.png" id="portrait" alt="nelson ooi" />
+    </div>
 
-            <div class="mb-5 portrait-wrapper">
-                <img src="./assets/images/img.png" id="portrait" alt="Nelson Ooi" />
-            </div>
+    <h1 class="site-title mona">nelson ooi</h1>
 
-            <h1 class="site-title mona mb-4">
-                nelson ooi
-            </h1>
+    <p class="ptmono intro-text">
+        hi there! <br>
+        welcome to my 🏠 on the internet.
+    </p>
 
-            <p class="ptmono mb-5 intro-text">
-                hi there! <br>
-                welcome to my 🏠 on the internet.
-            </p>
+    <nav>
+        <ul class="link-list ptmono">
+            <li><a href="resume.html">resume + cv</a></li>
+            <li><a href="https://www.linkedin.com/in/nelson-ooi">linkedin</a></li>
+            <li><a href="https://www.github.com/NelsonOoi">github</a></li>
+        </ul>
+    </nav>
 
-            <nav class="mb-5">
-                <ul class="link-list ptmono">
-                    <li><a href="resume.html">resume + cv</a></li>
-                    <li><a href="https://www.linkedin.com/in/nelson-ooi">linkedin</a></li>
-                    <li><a href="https://www.github.com/NelsonOoi">github</a></li>
-                </ul>
-            </nav>
-
-            <nav>
-                <ul class="link-list ptmono">
-                    <li><a href="research.html">research</a></li>
-                    <li><a href="publications.html">publications</a></li>
-                    <li><a href="presentations.html">presentations</a></li>
-                    <li><a href="projects.html">bits, bytes, and boards</a></li>
-                </ul>
-            </nav>
-
-        </div>
-    </section>
+    <nav>
+        <ul class="link-list ptmono">
+            <li><a href="research.html">research</a></li>
+            <li><a href="publications.html">publications</a></li>
+            <li><a href="presentations.html">presentations</a></li>
+            <li><a href="projects.html">bits, bytes, and boards</a></li>
+        </ul>
+    </nav>
 
     <script>
-    (function() {
-        const img = document.getElementById('portrait');
-        let rx = 0, ry = 0, tx = 0, ty = 0;
-        const MAX = 15;
+        (function () {
+            var img = document.getElementById('portrait');
+            var rx = 0, ry = 0, tx = 0, ty = 0;
+            var MAX = 15;
 
-        document.addEventListener('mousemove', function(e) {
-            tx = ((e.clientY / window.innerHeight) - 0.5) * -MAX;
-            ty = ((e.clientX / window.innerWidth) - 0.5) * MAX;
-        });
-
-        if (window.DeviceOrientationEvent) {
-            window.addEventListener('deviceorientation', function(e) {
-                if (e.gamma === null) return;
-                ty = (e.gamma / 90) * MAX;
-                tx = ((e.beta - 45) / 90) * -MAX;
+            document.addEventListener('mousemove', function (e) {
+                tx = ((e.clientY / window.innerHeight) - 0.5) * -MAX;
+                ty = ((e.clientX / window.innerWidth) - 0.5) * MAX;
             });
-        }
 
-        function animate() {
-            rx += (tx - rx) * 0.08;
-            ry += (ty - ry) * 0.08;
-            img.style.transform = 'perspective(600px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
-            requestAnimationFrame(animate);
-        }
-        animate();
-    })();
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', function (e) {
+                    if (e.gamma === null) return;
+                    ty = (e.gamma / 90) * MAX;
+                    tx = ((e.beta - 45) / 90) * -MAX;
+                });
+            }
+
+            function animate() {
+                rx += (tx - rx) * 0.08;
+                ry += (ty - ry) * 0.08;
+                img.style.transform = 'perspective(600px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
     </script>
 </body>
 

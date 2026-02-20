@@ -125,13 +125,9 @@ a:hover {
 }
 
 /* Index page */
-.index-wrapper {
-    max-width: 720px;
-    padding: 0 1.5rem;
-}
-
 .portrait-wrapper {
     perspective: 600px;
+    margin-bottom: 1.5rem;
 }
 
 #portrait {
@@ -147,18 +143,20 @@ a:hover {
     font-size: 1.3rem;
     color: #ccc;
     letter-spacing: 0.02em;
+    margin: 0 0 1rem 0;
 }
 
 .intro-text {
     font-size: 0.85rem;
     line-height: 1.7;
     color: #999;
+    margin: 0 0 1.5rem 0;
 }
 
 .link-list {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0 0 1.5rem 0;
 }
 
 .link-list li {
@@ -168,6 +166,7 @@ a:hover {
 .link-list a {
     font-size: 0.9rem;
     color: #a8b8d0;
+    text-decoration: none;
     transition: opacity 200ms ease, padding-left 200ms ease;
 }
 
