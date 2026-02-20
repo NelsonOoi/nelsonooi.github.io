@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>COMSOL Euler Angle Viewer</title>
+    <link rel="stylesheet" href="./styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #ccc;
+            font-family: PTMono, monospace;
+            padding: 2rem;
+            display: flex;
+            gap: 2rem;
+            min-height: 100vh;
+        }
+
+        .controls {
+            width: 260px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h1 {
+            font-family: Monathin, monospace;
+            font-size: 1.2rem;
+            color: #ccc;
+            margin-bottom: 0.25rem;
+        }
+
+        .subtitle {
+            font-size: 0.7rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .angle-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+        }
+
+        .angle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: #62a1ff;
+            background: transparent;
+        }
+
+        input[type="number"] {
+            width: 60px;
+            background: #111;
+            border: 1px solid #333;
+            color: #ccc;
+            font-family: PTMono, monospace;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.4rem;
+            text-align: right;
+        }
+
+        input[type="number"]:focus {
+            outline: 1px solid #62a1ff;
+            border-color: #62a1ff;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            min-height: 400px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border: 1px solid #1a1a1a;
+        }
+
+        .matrix-section {
+            font-size: 0.65rem;
+            color: #666;
+        }
+
+        .matrix-section h2 {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 0.4rem;
+            font-weight: normal;
+        }
+
+        .matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .matrix span {
+            background: #0a0a0a;
+            padding: 0.2rem 0.3rem;
+            text-align: right;
+        }
+
+        .back-link {
+            font-size: 0.75rem;
+        }
+
+        .legend {
+            font-size: 0.65rem;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .legend span {
+            display: inline-block;
+            width: 12px;
+            height: 3px;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        .legend .dashed {
+            border-top: 2px dashed;
+            height: 0;
+        }
+
+        .preset-btn {
+            background: #111;
+            border: 1px solid #333;
+            color: #888;
+            font-family: PTMono, monospace;
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            cursor: pointer;
+            transition: border-color 200ms;
+        }
+
+        .preset-btn:hover {
+            border-color: #62a1ff;
+            color: #ccc;
+        }
+
+        .presets {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .controls {
+                width: 100%;
+            }
+
+            .canvas-wrapper {
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <div>
+            <h1>euler angles</h1>
+            <p class="subtitle">COMSOL ZXZ convention</p>
+            <a href="index.html" class="back-link">&larr; home</a>
+        </div>
+
+        <div class="angle-group">
+            <label>&alpha; — rotate about Z</label>
+            <div class="angle-row">
+                <input type="range" id="alpha" min="-180" max="180" value="0" step="1">
+                <input type="number" id="alpha-num" min="-180" max="180" value="0" step="1">&deg;
+            </div>
+        </div>
+
+        <div class="angle-group">
+            <label>&beta; — rotate about X&prime;</label>
+            <div class="angle-row">
+                <input type="range" id="beta" min="-180" max="180" value="0" step="1">
+                <input type="number" id="beta-num" min="-180" max="180" value="0" step="1">&deg;
+            </div>
+        </div>
+
+        <div class="angle-group">
+            <label>&gamma; — rotate about Z&Prime;</label>
+            <div class="angle-row">
+                <input type="range" id="gamma" min="-180" max="180" value="0" step="1">
+                <input type="number" id="gamma-num" min="-180" max="180" value="0" step="1">&deg;
+            </div>
+        </div>
+
+        <div class="presets">
+            <button class="preset-btn" onclick="setAngles(0,0,0)">reset</button>
+            <button class="preset-btn" onclick="setAngles(0,90,0)">β=90</button>
+            <button class="preset-btn" onclick="setAngles(90,0,0)">α=90</button>
+            <button class="preset-btn" onclick="setAngles(45,45,45)">45/45/45</button>
+        </div>
+
+        <div class="legend">
+            <div><span style="background:#ef4444"></span> X
+                &nbsp;&nbsp;<span class="dashed" style="border-color:#ef4444"></span> x&prime;</div>
+            <div><span style="background:#22c55e"></span> Y
+                &nbsp;&nbsp;<span class="dashed" style="border-color:#22c55e"></span> y&prime;</div>
+            <div><span style="background:#3b82f6"></span> Z
+                &nbsp;&nbsp;<span class="dashed" style="border-color:#3b82f6"></span> z&prime;</div>
+        </div>
+
+        <div class="matrix-section">
+            <h2>rotation matrix</h2>
+            <div class="matrix" id="matrix"></div>
+        </div>
+    </div>
+
+    <div class="canvas-wrapper">
+        <canvas id="viewport"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('viewport');
+        const ctx = canvas.getContext('2d');
+
+        const sliders = {
+            alpha: document.getElementById('alpha'),
+            beta: document.getElementById('beta'),
+            gamma: document.getElementById('gamma')
+        };
+        const nums = {
+            alpha: document.getElementById('alpha-num'),
+            beta: document.getElementById('beta-num'),
+            gamma: document.getElementById('gamma-num')
+        };
+
+        let alpha = 0, beta = 0, gamma = 0;
+        let camTheta = Math.PI / 6, camPhi = Math.PI / 4;
+        let dragging = false, lastMouse = { x: 0, y: 0 };
+
+        function deg(r) { return r * 180 / Math.PI; }
+        function rad(d) { return d * Math.PI / 180; }
+
+        function syncInputs() {
+            sliders.alpha.value = alpha;
+            sliders.beta.value = beta;
+            sliders.gamma.value = gamma;
+            nums.alpha.value = alpha;
+            nums.beta.value = beta;
+            nums.gamma.value = gamma;
+        }
+
+        function setAngles(a, b, g) {
+            alpha = a; beta = b; gamma = g;
+            syncInputs();
+            updateMatrix();
+            draw();
+        }
+
+        Object.keys(sliders).forEach(key => {
+            sliders[key].addEventListener('input', () => {
+                const v = parseFloat(sliders[key].value);
+                if (key === 'alpha') alpha = v;
+                if (key === 'beta') beta = v;
+                if (key === 'gamma') gamma = v;
+                nums[key].value = v;
+                updateMatrix();
+                draw();
+            });
+            nums[key].addEventListener('input', () => {
+                let v = parseFloat(nums[key].value);
+                if (isNaN(v)) return;
+                v = Math.max(-180, Math.min(180, v));
+                if (key === 'alpha') alpha = v;
+                if (key === 'beta') beta = v;
+                if (key === 'gamma') gamma = v;
+                sliders[key].value = v;
+                updateMatrix();
+                draw();
+            });
+        });
+
+        // ZXZ rotation matrix
+        function rotZXZ(a, b, g) {
+            const ca = Math.cos(a), sa = Math.sin(a);
+            const cb = Math.cos(b), sb = Math.sin(b);
+            const cg = Math.cos(g), sg = Math.sin(g);
+            return [
+                [ca * cg - sa * cb * sg, -ca * sg - sa * cb * cg, sa * sb],
+                [sa * cg + ca * cb * sg, -sa * sg + ca * cb * cg, -ca * sb],
+                [sb * sg, sb * cg, cb]
+            ];
+        }
+
+        function updateMatrix() {
+            const R = rotZXZ(rad(alpha), rad(beta), rad(gamma));
+            const el = document.getElementById('matrix');
+            el.innerHTML = R.map(row =>
+                row.map(v => `<span>${v.toFixed(4)}</span>`).join('')
+            ).join('');
+        }
+
+        // Camera projection
+        let drawW = 400, drawH = 400;
+
+        function project(x, y, z) {
+            const cp = Math.cos(camPhi), sp = Math.sin(camPhi);
+            const ct = Math.cos(camTheta), st = Math.sin(camTheta);
+
+            const px = -sp * x + cp * y;
+            const py = -ct * cp * x - ct * sp * y + st * z;
+
+            const scale = Math.min(drawW, drawH) * 0.28;
+            return {
+                x: drawW / 2 + px * scale,
+                y: drawH / 2 - py * scale
+            };
+        }
+
+        function drawArrow(from, to, color, dashed) {
+            const p0 = project(from[0], from[1], from[2]);
+            const p1 = project(to[0], to[1], to[2]);
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = dashed ? 2 : 2.5;
+            if (dashed) ctx.setLineDash([6, 4]);
+            else ctx.setLineDash([]);
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(p1.x, p1.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Arrowhead
+            const dx = p1.x - p0.x, dy = p1.y - p0.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 1) return;
+            const ux = dx / len, uy = dy / len;
+            const size = 10;
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p1.x - ux * size + uy * size * 0.4, p1.y - uy * size - ux * size * 0.4);
+            ctx.lineTo(p1.x - ux * size - uy * size * 0.4, p1.y - uy * size + ux * size * 0.4);
+            ctx.fill();
+        }
+
+        function drawLabel(text, pos, color) {
+            const p = project(pos[0], pos[1], pos[2]);
+            ctx.font = '13px PTMono, monospace';
+            ctx.fillStyle = color;
+            ctx.fillText(text, p.x + 8, p.y - 6);
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([]);
+            const n = 4;
+            for (let i = -n; i <= n; i++) {
+                const a = project(i / n * 1.5, -1.5, 0);
+                const b = project(i / n * 1.5, 1.5, 0);
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+                const c = project(-1.5, i / n * 1.5, 0);
+                const d = project(1.5, i / n * 1.5, 0);
+                ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+            }
+        }
+
+        function draw() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            drawW = rect.width;
+            drawH = rect.height;
+            canvas.width = drawW * dpr;
+            canvas.height = drawH * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, drawW, drawH);
+            drawGrid();
+
+            const L = 1.2;
+            const o = [0, 0, 0];
+
+            // Global axes (solid)
+            drawArrow(o, [L, 0, 0], '#ef4444', false);
+            drawArrow(o, [0, L, 0], '#22c55e', false);
+            drawArrow(o, [0, 0, L], '#3b82f6', false);
+            drawLabel('X', [L + 0.05, 0, 0], '#ef4444');
+            drawLabel('Y', [0, L + 0.05, 0], '#22c55e');
+            drawLabel('Z', [0, 0, L + 0.05], '#3b82f6');
+
+            // Rotated axes (dashed)
+            const R = rotZXZ(rad(alpha), rad(beta), rad(gamma));
+            const rx = [R[0][0] * L, R[1][0] * L, R[2][0] * L];
+            const ry = [R[0][1] * L, R[1][1] * L, R[2][1] * L];
+            const rz = [R[0][2] * L, R[1][2] * L, R[2][2] * L];
+
+            drawArrow(o, rx, '#ef4444', true);
+            drawArrow(o, ry, '#22c55e', true);
+            drawArrow(o, rz, '#3b82f6', true);
+            drawLabel("x'", [rx[0] + 0.05, rx[1], rx[2]], '#ef4444');
+            drawLabel("y'", [ry[0], ry[1] + 0.05, ry[2]], '#22c55e');
+            drawLabel("z'", [rz[0], rz[1], rz[2] + 0.05], '#3b82f6');
+        }
+
+        // Orbit controls
+        canvas.addEventListener('mousedown', e => {
+            dragging = true;
+            lastMouse = { x: e.clientX, y: e.clientY };
+        });
+        window.addEventListener('mouseup', () => dragging = false);
+        window.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const dx = e.clientX - lastMouse.x;
+            const dy = e.clientY - lastMouse.y;
+            camPhi += dx * 0.005;
+            camTheta = Math.max(0.05, Math.min(Math.PI - 0.05, camTheta - dy * 0.005));
+            lastMouse = { x: e.clientX, y: e.clientY };
+            draw();
+        });
+
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                dragging = true;
+                lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        canvas.addEventListener('touchmove', e => {
+            if (!dragging || e.touches.length !== 1) return;
+            e.preventDefault();
+            const dx = e.touches[0].clientX - lastMouse.x;
+            const dy = e.touches[0].clientY - lastMouse.y;
+            camPhi += dx * 0.005;
+            camTheta = Math.max(0.05, Math.min(Math.PI - 0.05, camTheta - dy * 0.005));
+            lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            draw();
+        }, { passive: false });
+        canvas.addEventListener('touchend', () => dragging = false);
+
+        window.addEventListener('resize', draw);
+        updateMatrix();
+        draw();
+    </script>
+</body>
+
+</html>
