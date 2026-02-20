@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html class="has-background-black">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Presentation Timer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="./styles.css">
+    <style>
+        body {
+            min-height: 100vh;
+        }
+
+        .timer-display {
+            font-family: PTMono;
+            font-size: 12vw;
+            line-height: 1;
+            color: white;
+            text-align: center;
+            filter: drop-shadow(2px 2px red);
+        }
+
+        .timer-display.compact {
+            font-size: 4rem;
+        }
+
+        .timer-bar {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: nowrap;
+        }
+
+        .timer-display.warning {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .slide-indicator {
+            font-family: PTMono;
+            font-size: 2rem;
+            color: #aaa;
+            text-align: center;
+        }
+
+        .question-card {
+            background: #1a1a1a;
+            border-left: 3px solid red;
+            padding: 0.5rem 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .question-card .q-name {
+            color: red;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .question-card .q-text {
+            color: white;
+            font-size: 0.95rem;
+        }
+
+        .question-card .q-time {
+            color: #666;
+            font-size: 0.75rem;
+        }
+
+        .btn-control {
+            font-family: PTMono;
+            min-width: 80px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+        }
+
+        input.input.dark-input {
+            background: #1a1a1a;
+            border-color: #333;
+            color: white;
+            font-family: PTMono;
+        }
+
+        input.dark-input::placeholder {
+            color: #666;
+        }
+
+        textarea.textarea.dark-input {
+            background: #1a1a1a;
+            border-color: #333;
+            color: white;
+            font-family: PTMono;
+        }
+
+        textarea.dark-input::placeholder {
+            color: #666;
+        }
+
+        .added-time-toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: red;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: PTMono;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+
+        .added-time-toast.show {
+            opacity: 1;
+        }
+
+
+        #questions-list {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: thin;
+            scrollbar-color: #444 transparent;
+        }
+
+        #questions-list::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        #questions-list::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 2px;
+        }
+
+        #questions-list .question-card {
+            min-width: 220px;
+            max-width: 300px;
+            flex-shrink: 0;
+            margin-bottom: 0;
+            white-space: normal;
+        }
+
+        .questions-carousel {
+            margin-bottom: 0.75rem;
+        }
+
+        .slides-embed-wrap {
+            position: relative;
+        }
+
+        .slides-embed {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: 2px solid #333;
+            border-radius: 6px;
+            background: #000;
+        }
+
+        .slides-open-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #555;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            line-height: 1;
+            z-index: 2;
+        }
+
+        .slides-open-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toast" class="added-time-toast"></div>
+
+    <!-- ============ PRESENTER: SETUP SCREEN ============ -->
+    <section id="presenter-setup" class="section" style="display:none;">
+        <div class="container" style="max-width:500px;">
+            <h1 class="title large mona has-text-white red-shadow has-text-centered mb-5">Presentation Timer</h1>
+            <div class="field">
+                <label class="label ptmono has-text-white">Google Slides URL (optional)</label>
+                <input id="slides-url" class="input dark-input" type="url"
+                    placeholder="https://docs.google.com/presentation/d/...">
+            </div>
+            <div class="field">
+                <label class="label ptmono has-text-white">Number of slides</label>
+                <input id="num-slides" class="input dark-input" type="number" min="1" value="10">
+            </div>
+            <button id="btn-create-session" class="button is-danger is-fullwidth btn-control mt-4">Create
+                Session</button>
+        </div>
+    </section>
+
+    <!-- ============ PRESENTER: TIMER SCREEN ============ -->
+    <section id="presenter-timer" class="section pt-4" style="display:none;">
+        <div class="container">
+            <div id="p-slides-col" style="display:none;" class="mb-3">
+                <div id="p-embed-wrap" class="slides-embed-wrap" style="display:none;">
+                    <iframe id="p-slides-embed" class="slides-embed" frameborder="0" allowfullscreen></iframe>
+                    <a id="p-slides-link" class="slides-open-btn" target="_blank" rel="noopener"
+                        title="Open in new tab">&#8599;</a>
+                </div>
+            </div>
+            <div class="questions-carousel">
+                <div id="questions-list"></div>
+            </div>
+            <div id="p-timer-bar" class="timer-bar mb-3">
+                <div class="slide-indicator" id="p-slide-indicator">Slide 1 / 10</div>
+                <div class="timer-display compact" id="p-timer-display">1:00</div>
+                <div class="controls-row">
+                    <button id="btn-prev" class="button is-dark btn-control">Prev</button>
+                    <button id="btn-pause" class="button is-warning btn-control">Pause</button>
+                    <button id="btn-next" class="button is-dark btn-control">Next</button>
+                </div>
+                <div style="border-left:2px solid #333;padding-left:1.5rem;min-width:0;flex:1;">
+                    <div>
+                        <p class="ptmono has-text-grey-light" style="font-size:0.8rem;" id="p-share-label">Share with
+                            audience:</p>
+                        <input id="p-share-url" class="input dark-input mt-1" readonly
+                            style="text-align:center;cursor:pointer;font-size:0.8rem;" title="Click to copy">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ AUDIENCE: JOIN SCREEN ============ -->
+    <section id="audience-join" class="section" style="display:none;">
+        <div class="container" style="max-width:400px;">
+            <h1 class="title large mona has-text-white red-shadow has-text-centered mb-5">Join Presentation</h1>
+            <div class="field">
+                <label class="label ptmono has-text-white">Your name</label>
+                <input id="audience-name" class="input dark-input" type="text" placeholder="Enter your display name">
+            </div>
+            <button id="btn-join" class="button is-danger is-fullwidth btn-control mt-4">Join</button>
+        </div>
+    </section>
+
+    <!-- ============ AUDIENCE: MAIN SCREEN ============ -->
+    <section id="audience-main" class="section pt-4" style="display:none;">
+        <div class="container">
+            <div id="a-slides-col" style="display:none;" class="mb-3">
+                <div id="a-embed-wrap" class="slides-embed-wrap" style="display:none;">
+                    <iframe id="a-slides-embed" class="slides-embed" frameborder="0" allowfullscreen></iframe>
+                    <a id="a-slides-link" class="slides-open-btn" target="_blank" rel="noopener"
+                        title="Open in new tab">&#8599;</a>
+                </div>
+            </div>
+            <div id="a-timer-bar" class="timer-bar mb-3">
+                <div class="slide-indicator" id="a-slide-indicator">Slide 1 / 10</div>
+                <div class="timer-display compact" id="a-timer-display">1:00</div>
+            </div>
+            <div class="columns">
+                <div class="column is-half">
+                    <div class="box" style="background:#111;border:1px solid #333;">
+                        <h3 class="ptmono has-text-white mb-3">Ask a Question <span class="has-text-grey-light"
+                                style="font-size:0.8rem;">(+30s)</span></h3>
+                        <div class="field">
+                            <textarea id="question-text" class="textarea dark-input" rows="2"
+                                placeholder="Type your question..."></textarea>
+                        </div>
+                        <button id="btn-ask" class="button is-danger is-fullwidth btn-control">Submit Question</button>
+                    </div>
+                </div>
+                <div class="column is-half">
+                    <h2 class="ptmono has-text-white medium mb-3">Questions</h2>
+                    <div id="a-questions-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ NO SESSION SCREEN ============ -->
+    <section id="no-session" class="section" style="display:none;">
+        <div class="container has-text-centered">
+            <h1 class="title large mona has-text-white red-shadow mb-5">Presentation Timer</h1>
+            <p class="ptmono has-text-grey-light mb-4">No session found. Are you the presenter?</p>
+            <button id="btn-go-presenter" class="button is-danger btn-control">Create a Session</button>
+        </div>
+    </section>
+
+    <!-- Firebase SDK (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+    <script>
+        // =====================================================
+        // FIREBASE CONFIG — Replace with your own Firebase project config
+        // 1. Go to https://console.firebase.google.com
+        // 2. Create a project (or use existing)
+        // 3. Add a Web App, copy the config object below
+        // 4. Enable Realtime Database in the Firebase console
+        // 5. Set database rules to allow read/write (for testing):
+        //    { "rules": { ".read": true, ".write": true } }
+        // =====================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCTqNkgTMCI8U-DXGYiwmFBl0WJzMgmGGA",
+            authDomain: "timer-b7caa.firebaseapp.com",
+            databaseURL: "https://timer-b7caa-default-rtdb.firebaseio.com",
+            projectId: "timer-b7caa",
+            storageBucket: "timer-b7caa.firebasestorage.app",
+            messagingSenderId: "800894062783",
+            appId: "1:800894062783:web:92c0a21fed3f83b0de360a"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ---- State ----
+        let sessionId = null;
+        let isPresenter = false;
+        let displayName = '';
+        let timerInterval = null;
+        let knownQuestionCount = 0;
+
+        // ---- URL Params ----
+        const params = new URLSearchParams(window.location.search);
+        const modeParam = params.get('mode');
+        const sessionParam = params.get('session');
+
+        // ---- Routing ----
+        if (modeParam === 'presenter' && !sessionParam) {
+            showScreen('presenter-setup');
+        } else if (sessionParam) {
+            sessionId = sessionParam;
+            if (modeParam === 'presenter') {
+                isPresenter = true;
+                initPresenterTimer();
+            } else {
+                showScreen('audience-join');
+            }
+        } else {
+            showScreen('no-session');
+        }
+
+        // ---- Screens ----
+        function showScreen(id) {
+            ['presenter-setup', 'presenter-timer', 'audience-join', 'audience-main', 'no-session']
+                .forEach(s => document.getElementById(s).style.display = 'none');
+            document.getElementById(id).style.display = '';
+        }
+
+        // ---- Slides Embed ----
+        let presentationId = null;
+
+        function extractPresentationId(url) {
+            if (!url) return null;
+            const match = url.match(/\/presentation\/d\/([a-zA-Z0-9_-]+)/);
+            return match ? match[1] : null;
+        }
+
+        function buildEmbedUrl(presId) {
+            return 'https://docs.google.com/presentation/d/' + presId
+                + '/embed?start=false&loop=false';
+        }
+
+        function showEmbed(iframeId, wrapId) {
+            if (!presentationId) return;
+            const iframe = document.getElementById(iframeId);
+            if (iframe.src) return;
+            document.getElementById(wrapId).style.display = '';
+            iframe.src = buildEmbedUrl(presentationId);
+        }
+
+        // ---- Presenter Setup ----
+        document.getElementById('btn-create-session').addEventListener('click', () => {
+            const slidesUrl = document.getElementById('slides-url').value.trim();
+            const totalSlides = parseInt(document.getElementById('num-slides').value) || 10;
+            sessionId = generateId();
+            isPresenter = true;
+            presentationId = extractPresentationId(slidesUrl);
+
+            const sessionData = {
+                config: { slidesUrl, totalSlides },
+                timer: { currentSlide: 1, timeRemaining: 60, isPaused: true, lastUpdate: firebase.database.ServerValue.TIMESTAMP }
+            };
+
+            db.ref('sessions/' + sessionId).set(sessionData).then(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('session', sessionId);
+                url.searchParams.set('mode', 'presenter');
+                window.history.replaceState({}, '', url);
+                initPresenterTimer();
+            });
+        });
+
+        document.getElementById('btn-go-presenter').addEventListener('click', () => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('mode', 'presenter');
+            window.location.href = url.toString();
+        });
+
+        // ---- Presenter Timer ----
+        function initPresenterTimer() {
+            showScreen('presenter-timer');
+            const ref = db.ref('sessions/' + sessionId);
+
+            ref.child('config').on('value', snap => {
+                const config = snap.val();
+                if (!config) return;
+                localTimerState.totalSlides = config.totalSlides;
+                if (config.slidesUrl) {
+                    presentationId = extractPresentationId(config.slidesUrl);
+                    document.getElementById('p-slides-link').href = config.slidesUrl;
+                    document.getElementById('p-slides-col').style.display = '';
+                    showEmbed('p-slides-embed', 'p-embed-wrap');
+                } else {
+                    document.getElementById('p-timer-display').classList.remove('compact');
+                }
+            });
+
+            ref.child('timer').on('value', snap => {
+                const timer = snap.val();
+                if (!timer) return;
+                updatePresenterDisplay(timer);
+            });
+
+            ref.child('questions').on('value', snap => {
+                const questions = snap.val() || {};
+                renderQuestions('questions-list', questions);
+                const count = Object.keys(questions).length;
+                if (count > knownQuestionCount && knownQuestionCount > 0) {
+                    showToast('+30s added for question');
+                }
+                knownQuestionCount = count;
+            });
+
+            // Share URL
+            const audienceUrl = new URL(window.location.href);
+            audienceUrl.searchParams.delete('mode');
+            audienceUrl.searchParams.set('session', sessionId);
+            document.getElementById('p-share-url').value = audienceUrl.toString();
+
+            document.getElementById('p-share-url').addEventListener('click', function () {
+                this.select();
+                navigator.clipboard.writeText(this.value).then(() => showToast('Copied!'));
+            });
+
+            // Controls
+            document.getElementById('btn-pause').addEventListener('click', togglePause);
+            document.getElementById('btn-next').addEventListener('click', () => changeSlide(1));
+            document.getElementById('btn-prev').addEventListener('click', () => changeSlide(-1));
+
+            startLocalTick();
+        }
+
+        let localTimerState = { timeRemaining: 60, isPaused: true, currentSlide: 1, totalSlides: 10 };
+
+        function updatePresenterDisplay(timer) {
+            localTimerState.timeRemaining = timer.timeRemaining;
+            localTimerState.isPaused = timer.isPaused;
+            localTimerState.currentSlide = timer.currentSlide;
+            renderTimer('p-timer-display', 'p-slide-indicator', timer);
+            document.getElementById('btn-pause').textContent = timer.isPaused ? 'Start' : 'Pause';
+            document.getElementById('btn-pause').className = timer.isPaused
+                ? 'button is-success btn-control'
+                : 'button is-warning btn-control';
+        }
+
+        function startLocalTick() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (localTimerState.isPaused) return;
+                if (localTimerState.timeRemaining <= 0) return;
+                localTimerState.timeRemaining = Math.max(0, localTimerState.timeRemaining - 1);
+                renderTimerValue('p-timer-display', localTimerState.timeRemaining);
+                db.ref('sessions/' + sessionId + '/timer/timeRemaining').set(localTimerState.timeRemaining);
+            }, 1000);
+        }
+
+        function togglePause() {
+            const ref = db.ref('sessions/' + sessionId + '/timer');
+            ref.once('value').then(snap => {
+                const timer = snap.val();
+                ref.update({ isPaused: !timer.isPaused });
+            });
+        }
+
+        function changeSlide(delta) {
+            const ref = db.ref('sessions/' + sessionId);
+            ref.once('value').then(snap => {
+                const data = snap.val();
+                const newSlide = data.timer.currentSlide + delta;
+                if (newSlide < 1 || newSlide > data.config.totalSlides) return;
+                ref.child('timer').update({
+                    currentSlide: newSlide,
+                    timeRemaining: 60,
+                    isPaused: true
+                });
+            });
+        }
+
+        // ---- Audience ----
+        document.getElementById('btn-join').addEventListener('click', () => {
+            displayName = document.getElementById('audience-name').value.trim();
+            if (!displayName) return;
+            initAudience();
+        });
+
+        document.getElementById('audience-name').addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('btn-join').click();
+        });
+
+        function initAudience() {
+            showScreen('audience-main');
+            const ref = db.ref('sessions/' + sessionId);
+
+            ref.child('config').on('value', snap => {
+                const config = snap.val();
+                if (!config) return;
+                localTimerState.totalSlides = config.totalSlides;
+                if (config.slidesUrl) {
+                    presentationId = extractPresentationId(config.slidesUrl);
+                    document.getElementById('a-slides-link').href = config.slidesUrl;
+                    document.getElementById('a-slides-col').style.display = '';
+                    showEmbed('a-slides-embed', 'a-embed-wrap');
+                } else {
+                    document.getElementById('a-timer-display').classList.remove('compact');
+                }
+            });
+
+            ref.child('timer').on('value', snap => {
+                const timer = snap.val();
+                if (!timer) return;
+                localTimerState.timeRemaining = timer.timeRemaining;
+                localTimerState.isPaused = timer.isPaused;
+                localTimerState.currentSlide = timer.currentSlide;
+                renderTimer('a-timer-display', 'a-slide-indicator', timer);
+            });
+
+            ref.child('questions').on('value', snap => {
+                const questions = snap.val() || {};
+                renderQuestions('a-questions-list', questions);
+            });
+
+            startAudienceTick();
+
+            document.getElementById('btn-ask').addEventListener('click', submitQuestion);
+            document.getElementById('question-text').addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitQuestion();
+                }
+            });
+        }
+
+        function startAudienceTick() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (localTimerState.isPaused || localTimerState.timeRemaining <= 0) return;
+                localTimerState.timeRemaining = Math.max(0, localTimerState.timeRemaining - 1);
+                renderTimerValue('a-timer-display', localTimerState.timeRemaining);
+            }, 1000);
+        }
+
+        function submitQuestion() {
+            const text = document.getElementById('question-text').value.trim();
+            if (!text) return;
+            document.getElementById('question-text').value = '';
+
+            const ref = db.ref('sessions/' + sessionId);
+            ref.child('questions').push({
+                name: displayName,
+                text: text,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            // Add 30 seconds
+            ref.child('timer/timeRemaining').transaction(current => {
+                return (current || 0) + 30;
+            });
+
+            showToast('Question submitted (+30s)');
+        }
+
+        // ---- Render Helpers ----
+        function renderTimer(timerId, slideId, timer) {
+            renderTimerValue(timerId, timer.timeRemaining);
+            const totalSlides = localTimerState.totalSlides || '?';
+            document.getElementById(slideId).textContent = 'Slide ' + timer.currentSlide + ' / ' + totalSlides;
+        }
+
+        function renderTimerValue(elementId, seconds) {
+            const el = document.getElementById(elementId);
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            el.textContent = mins + ':' + String(secs).padStart(2, '0');
+            el.classList.toggle('warning', seconds <= 10 && seconds > 0);
+        }
+
+        function renderQuestions(containerId, questions) {
+            const container = document.getElementById(containerId);
+            const entries = Object.values(questions).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            container.innerHTML = entries.map(q => {
+                const time = q.timestamp ? new Date(q.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                return '<div class="question-card">'
+                    + '<span class="q-name ptmono">' + escapeHtml(q.name) + '</span>'
+                    + ' <span class="q-time">' + time + '</span>'
+                    + '<div class="q-text ptmono">' + escapeHtml(q.text) + '</div>'
+                    + '</div>';
+            }).join('');
+        }
+
+        // ---- Utilities ----
+        function generateId() {
+            return Math.random().toString(36).substring(2, 8);
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+
+</html>
