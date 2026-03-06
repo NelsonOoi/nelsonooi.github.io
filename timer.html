@@ -201,11 +201,129 @@
             background: rgba(255, 255, 255, 0.15);
             color: white;
         }
+
+        /* ---- Times Up Effects ---- */
+        .times-up-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .times-up-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .times-up-text {
+            font-family: PTMono;
+            font-size: 8vw;
+            font-weight: bold;
+            color: #ff0000;
+            text-shadow: 0 0 20px #ff0000, 0 0 60px #ff0000, 0 0 100px #990000;
+            transform: scale(0);
+            animation: none;
+        }
+
+        .times-up-overlay.active .times-up-text {
+            animation: slamIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+                       textPulseGlow 0.6s 0.4s ease-in-out infinite alternate;
+        }
+
+        @keyframes slamIn {
+            0%   { transform: scale(3); opacity: 0; }
+            70%  { transform: scale(0.9); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes textPulseGlow {
+            0%   { text-shadow: 0 0 20px #ff0000, 0 0 60px #ff0000; }
+            100% { text-shadow: 0 0 40px #ff0000, 0 0 100px #ff0000, 0 0 150px #cc0000; }
+        }
+
+        .slides-embed-wrap.glitch-shake {
+            animation: shake 0.15s linear infinite;
+        }
+
+        .slides-embed-wrap.glitch-shake .slides-embed {
+            animation: glitchFilter 0.2s steps(2) infinite;
+        }
+
+        .slides-embed-wrap.glitch-shake::before,
+        .slides-embed-wrap.glitch-shake::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 3;
+            mix-blend-mode: screen;
+        }
+
+        .slides-embed-wrap.glitch-shake::before {
+            background: rgba(255, 0, 0, 0.08);
+            animation: glitchSlice 0.3s steps(3) infinite;
+        }
+
+        .slides-embed-wrap.glitch-shake::after {
+            background: rgba(0, 255, 255, 0.06);
+            animation: glitchSlice 0.3s 0.1s steps(3) infinite reverse;
+        }
+
+        @keyframes shake {
+            0%   { transform: translate(0, 0) rotate(0deg); }
+            20%  { transform: translate(-4px, 3px) rotate(-0.5deg); }
+            40%  { transform: translate(4px, -2px) rotate(0.5deg); }
+            60%  { transform: translate(-3px, -3px) rotate(-0.3deg); }
+            80%  { transform: translate(3px, 2px) rotate(0.3deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        @keyframes glitchFilter {
+            0%   { filter: hue-rotate(0deg) brightness(1) contrast(1); }
+            25%  { filter: hue-rotate(90deg) brightness(1.4) contrast(1.5); }
+            50%  { filter: hue-rotate(-60deg) brightness(0.8) contrast(2); }
+            75%  { filter: hue-rotate(180deg) brightness(1.2) contrast(1.3); }
+            100% { filter: hue-rotate(0deg) brightness(1) contrast(1); }
+        }
+
+        @keyframes glitchSlice {
+            0%   { clip-path: inset(10% 0 80% 0); }
+            33%  { clip-path: inset(50% 0 20% 0); }
+            66%  { clip-path: inset(30% 0 40% 0); }
+            100% { clip-path: inset(70% 0 5% 0); }
+        }
+
+        .timer-display.times-up {
+            color: #ff0000;
+            animation: shake 0.15s linear infinite;
+        }
+
+        /* Red flash on body */
+        @keyframes screenFlash {
+            0%, 100% { box-shadow: inset 0 0 0 transparent; }
+            50%      { box-shadow: inset 0 0 80px rgba(255, 0, 0, 0.3); }
+        }
+
+        body.flash-red {
+            animation: screenFlash 0.3s ease-in-out 3;
+        }
     </style>
 </head>
 
 <body>
     <div id="toast" class="added-time-toast"></div>
+    <div id="times-up-overlay" class="times-up-overlay" onclick="dismissTimesUp()">
+        <div class="times-up-text">TIME'S UP</div>
+        <div class="ptmono" style="color:#666;font-size:0.8rem;position:absolute;bottom:2rem;">click to dismiss</div>
+    </div>
 
     <!-- ============ PRESENTER: SETUP SCREEN ============ -->
     <section id="presenter-setup" class="section" style="display:none;">
@@ -516,6 +634,8 @@
                 const data = snap.val();
                 const newSlide = data.timer.currentSlide + delta;
                 if (newSlide < 1 || newSlide > data.config.totalSlides) return;
+                timesUpFired = false;
+                clearTimesUp();
                 ref.child('timer').update({
                     currentSlide: newSlide,
                     timeRemaining: 60,
@@ -614,12 +734,60 @@
             document.getElementById(slideId).textContent = 'Slide ' + timer.currentSlide + ' / ' + totalSlides;
         }
 
+        let timesUpFired = false;
+        let timesUpTimeout = null;
+        const airhorn = new Audio('https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3');
+        airhorn.volume = 0.7;
+
         function renderTimerValue(elementId, seconds) {
             const el = document.getElementById(elementId);
+            seconds = Number(seconds) || 0;
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             el.textContent = mins + ':' + String(secs).padStart(2, '0');
             el.classList.toggle('warning', seconds <= 10 && seconds > 0);
+
+            if (seconds <= 0 && !timesUpFired) {
+                timesUpFired = true;
+                triggerTimesUp(el);
+            } else if (seconds > 0 && timesUpFired) {
+                timesUpFired = false;
+                clearTimesUp();
+            }
+        }
+
+        function triggerTimesUp(timerEl) {
+            console.log('triggerTimesUp fired');
+            timerEl.classList.add('times-up');
+            timerEl.classList.remove('warning');
+            document.body.classList.add('flash-red');
+
+            document.querySelectorAll('.slides-embed-wrap').forEach(wrap => {
+                if (wrap.offsetParent !== null) wrap.classList.add('glitch-shake');
+            });
+
+            document.getElementById('times-up-overlay').classList.add('active');
+
+            airhorn.currentTime = 0;
+            airhorn.play().catch(() => {});
+
+            setTimeout(() => document.body.classList.remove('flash-red'), 1000);
+            if (timesUpTimeout) clearTimeout(timesUpTimeout);
+            timesUpTimeout = setTimeout(() => clearTimesUp(), 5000);
+        }
+
+        function dismissTimesUp() {
+            if (timesUpTimeout) clearTimeout(timesUpTimeout);
+            clearTimesUp();
+            airhorn.pause();
+            airhorn.currentTime = 0;
+        }
+
+        function clearTimesUp() {
+            document.querySelectorAll('.times-up').forEach(el => el.classList.remove('times-up'));
+            document.querySelectorAll('.glitch-shake').forEach(el => el.classList.remove('glitch-shake'));
+            document.getElementById('times-up-overlay').classList.remove('active');
+            document.body.classList.remove('flash-red');
         }
 
         function renderQuestions(containerId, questions) {
