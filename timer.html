@@ -798,9 +798,13 @@
             };
         }
 
-        document.addEventListener('click', () => {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-        }, { once: true });
+        let userHasInteracted = false;
+        ['click', 'keydown', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                userHasInteracted = true;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }, { once: true });
+        });
 
         preloadAudio();
 
@@ -828,7 +832,7 @@
             el.textContent = mins + ':' + String(secs).padStart(2, '0');
             el.classList.toggle('warning', seconds <= 10 && seconds > 0);
 
-            if (seconds <= 0 && !timesUpFired) {
+            if (seconds <= 0 && !timesUpFired && userHasInteracted) {
                 timesUpFired = true;
                 triggerTimesUp(el);
             } else if (seconds > 0 && timesUpFired) {
