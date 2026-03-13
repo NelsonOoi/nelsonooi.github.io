@@ -343,8 +343,11 @@
                 <label class="checkbox has-text-grey-light ptmono" style="display:block;margin-bottom:0.4rem;">
                     <input id="opt-airhorn" type="checkbox" checked> Airhorn
                 </label>
-                <label class="checkbox has-text-grey-light ptmono" style="display:block;">
+                <label class="checkbox has-text-grey-light ptmono" style="display:block;margin-bottom:0.4rem;">
                     <input id="opt-announcer" type="checkbox" checked> Announcer clips (every 30s)
+                </label>
+                <label class="checkbox has-text-grey-light ptmono" style="display:block;">
+                    <input id="opt-effects" type="checkbox" checked> Flashing graphics
                 </label>
             </div>
             <button id="btn-create-session" class="button is-danger is-fullwidth btn-control mt-4">Create
@@ -532,6 +535,7 @@
             presentationId = extractPresentationId(slidesUrl);
             enableAirhorn = document.getElementById('opt-airhorn').checked;
             enableAnnouncer = document.getElementById('opt-announcer').checked;
+            enableEffects = document.getElementById('opt-effects').checked;
 
             const sessionData = {
                 config: { slidesUrl, totalSlides },
@@ -750,7 +754,9 @@
         let announcerInterval = null;
         let enableAirhorn = true;
         let enableAnnouncer = true;
+        let enableEffects = true;
         const airhorn = new Audio('https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3');
+        airhorn.preload = 'auto';
         airhorn.volume = 0.7;
         const announcerClips = Array.from({length: 10}, (_, i) => {
             const a = new Audio(`./assets/sounds/${String(i + 1).padStart(3, '0')}.wav`);
@@ -759,6 +765,18 @@
             return a;
         });
         let lastAnnouncerIdx = -1;
+        let audioUnlocked = false;
+
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+            const allClips = [airhorn, ...announcerClips];
+            allClips.forEach(a => {
+                a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+            });
+        }
+
+        document.addEventListener('click', unlockAudio, { once: true });
 
         function playRandomAnnouncer() {
             let idx;
@@ -766,7 +784,12 @@
             lastAnnouncerIdx = idx;
             const clip = announcerClips[idx];
             clip.currentTime = 0;
-            clip.play().catch(e => console.warn('Announcer play failed:', e));
+            clip.play().then(() => {
+                console.log('Playing announcer clip', idx + 1);
+            }).catch(e => {
+                console.warn('Announcer play failed:', e);
+                showToast('Audio error: ' + e.message);
+            });
         }
 
         function stopAnnouncers() {
@@ -794,13 +817,14 @@
         function triggerTimesUp(timerEl) {
             timerEl.classList.add('times-up');
             timerEl.classList.remove('warning');
-            document.body.classList.add('flash-red');
 
-            document.querySelectorAll('.slides-embed-wrap').forEach(wrap => {
-                if (wrap.offsetParent !== null) wrap.classList.add('glitch-shake');
-            });
-
-            document.getElementById('times-up-overlay').classList.add('active');
+            if (enableEffects) {
+                document.body.classList.add('flash-red');
+                document.querySelectorAll('.slides-embed-wrap').forEach(wrap => {
+                    if (wrap.offsetParent !== null) wrap.classList.add('glitch-shake');
+                });
+                document.getElementById('times-up-overlay').classList.add('active');
+            }
 
             if (enableAirhorn) {
                 airhorn.currentTime = 0;
@@ -811,9 +835,11 @@
                 announcerInterval = setInterval(playRandomAnnouncer, 30000);
             }
 
-            setTimeout(() => document.body.classList.remove('flash-red'), 1000);
-            if (timesUpTimeout) clearTimeout(timesUpTimeout);
-            timesUpTimeout = setTimeout(() => clearTimesUp(), 5000);
+            if (enableEffects) {
+                setTimeout(() => document.body.classList.remove('flash-red'), 1000);
+                if (timesUpTimeout) clearTimeout(timesUpTimeout);
+                timesUpTimeout = setTimeout(() => clearTimesUp(), 5000);
+            }
         }
 
         function dismissTimesUp() {
