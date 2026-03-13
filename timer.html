@@ -761,7 +761,7 @@
         const ANNOUNCER_URLS = Array.from({length: 10}, (_, i) =>
             `./assets/sounds/${String(i + 1).padStart(3, '0')}.wav`
         );
-        const AIRHORN_URL = 'https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3';
+        const AIRHORN_URL = './assets/sounds/ElevenLabs_Blaring_air_horn_to_announce_the_start_of_a_race_or_event.mp3';
         let airhornBuffer = null;
         let lastAnnouncerIdx = -1;
         let activeAudioSources = [];
@@ -774,9 +774,13 @@
 
         function preloadAudio() {
             ANNOUNCER_URLS.forEach((url, i) => {
-                fetchAudioBuffer(url).then(buf => { announcerBuffers[i] = buf; });
+                fetchAudioBuffer(url)
+                    .then(buf => { announcerBuffers[i] = buf; console.log('Loaded clip', i + 1); })
+                    .catch(e => console.warn('Failed to load clip', i + 1, e));
             });
-            fetchAudioBuffer(AIRHORN_URL).then(buf => { airhornBuffer = buf; }).catch(() => {});
+            fetchAudioBuffer(AIRHORN_URL)
+                .then(buf => { airhornBuffer = buf; console.log('Loaded airhorn'); })
+                .catch(e => console.warn('Failed to load airhorn', e));
         }
 
         function playBuffer(buffer, volume = 0.7) {
