@@ -755,46 +755,65 @@
         let enableAirhorn = true;
         let enableAnnouncer = true;
         let enableEffects = true;
-        const airhorn = new Audio('https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3');
-        airhorn.preload = 'auto';
-        airhorn.volume = 0.7;
-        const announcerClips = Array.from({length: 10}, (_, i) => {
-            const a = new Audio(`./assets/sounds/${String(i + 1).padStart(3, '0')}.wav`);
-            a.preload = 'auto';
-            a.volume = 0.7;
-            return a;
-        });
-        let lastAnnouncerIdx = -1;
-        let audioUnlocked = false;
 
-        function unlockAudio() {
-            if (audioUnlocked) return;
-            audioUnlocked = true;
-            const allClips = [airhorn, ...announcerClips];
-            allClips.forEach(a => {
-                a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
-            });
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const announcerBuffers = [];
+        const ANNOUNCER_URLS = Array.from({length: 10}, (_, i) =>
+            `./assets/sounds/${String(i + 1).padStart(3, '0')}.wav`
+        );
+        const AIRHORN_URL = 'https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3';
+        let airhornBuffer = null;
+        let lastAnnouncerIdx = -1;
+        let activeAudioSources = [];
+
+        function fetchAudioBuffer(url) {
+            return fetch(url)
+                .then(r => r.arrayBuffer())
+                .then(buf => audioCtx.decodeAudioData(buf));
         }
 
-        document.addEventListener('click', unlockAudio, { once: true });
+        function preloadAudio() {
+            ANNOUNCER_URLS.forEach((url, i) => {
+                fetchAudioBuffer(url).then(buf => { announcerBuffers[i] = buf; });
+            });
+            fetchAudioBuffer(AIRHORN_URL).then(buf => { airhornBuffer = buf; }).catch(() => {});
+        }
+
+        function playBuffer(buffer, volume = 0.7) {
+            if (!buffer) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const source = audioCtx.createBufferSource();
+            const gain = audioCtx.createGain();
+            gain.gain.value = volume;
+            source.buffer = buffer;
+            source.connect(gain).connect(audioCtx.destination);
+            source.start(0);
+            activeAudioSources.push(source);
+            source.onended = () => {
+                activeAudioSources = activeAudioSources.filter(s => s !== source);
+            };
+        }
+
+        document.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
+
+        preloadAudio();
 
         function playRandomAnnouncer() {
+            const loaded = announcerBuffers.filter(Boolean);
+            if (loaded.length === 0) return;
             let idx;
-            do { idx = Math.floor(Math.random() * announcerClips.length); } while (idx === lastAnnouncerIdx);
+            do { idx = Math.floor(Math.random() * announcerBuffers.length); } while (idx === lastAnnouncerIdx && loaded.length > 1);
+            if (!announcerBuffers[idx]) idx = announcerBuffers.findIndex(Boolean);
             lastAnnouncerIdx = idx;
-            const clip = announcerClips[idx];
-            clip.currentTime = 0;
-            clip.play().then(() => {
-                console.log('Playing announcer clip', idx + 1);
-            }).catch(e => {
-                console.warn('Announcer play failed:', e);
-                showToast('Audio error: ' + e.message);
-            });
+            playBuffer(announcerBuffers[idx]);
         }
 
         function stopAnnouncers() {
             if (announcerInterval) { clearInterval(announcerInterval); announcerInterval = null; }
-            announcerClips.forEach(a => { a.pause(); a.currentTime = 0; });
+            activeAudioSources.forEach(s => { try { s.stop(); } catch(e) {} });
+            activeAudioSources = [];
         }
 
         function renderTimerValue(elementId, seconds) {
@@ -827,8 +846,7 @@
             }
 
             if (enableAirhorn) {
-                airhorn.currentTime = 0;
-                airhorn.play().catch(() => {});
+                playBuffer(airhornBuffer);
             }
             if (enableAnnouncer) {
                 playRandomAnnouncer();
@@ -845,8 +863,6 @@
         function dismissTimesUp() {
             if (timesUpTimeout) clearTimeout(timesUpTimeout);
             clearTimesUp();
-            airhorn.pause();
-            airhorn.currentTime = 0;
             stopAnnouncers();
         }
 
