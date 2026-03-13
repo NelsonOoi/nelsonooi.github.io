@@ -752,10 +752,12 @@
         let enableAnnouncer = true;
         const airhorn = new Audio('https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3');
         airhorn.volume = 0.7;
-        const announcerClips = Array.from({length: 10}, (_, i) =>
-            new Audio(`assets/sounds/${String(i + 1).padStart(3, '0')}.wav`)
-        );
-        announcerClips.forEach(a => a.volume = 0.7);
+        const announcerClips = Array.from({length: 10}, (_, i) => {
+            const a = new Audio(`./assets/sounds/${String(i + 1).padStart(3, '0')}.wav`);
+            a.preload = 'auto';
+            a.volume = 0.7;
+            return a;
+        });
         let lastAnnouncerIdx = -1;
 
         function playRandomAnnouncer() {
@@ -764,7 +766,7 @@
             lastAnnouncerIdx = idx;
             const clip = announcerClips[idx];
             clip.currentTime = 0;
-            clip.play().catch(() => {});
+            clip.play().catch(e => console.warn('Announcer play failed:', e));
         }
 
         function stopAnnouncers() {
