@@ -784,7 +784,7 @@
         }
 
         function playBuffer(buffer, volume = 0.7) {
-            if (!buffer) return;
+            if (!buffer || !userHasInteracted) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const source = audioCtx.createBufferSource();
             const gain = audioCtx.createGain();
@@ -832,7 +832,7 @@
             el.textContent = mins + ':' + String(secs).padStart(2, '0');
             el.classList.toggle('warning', seconds <= 10 && seconds > 0);
 
-            if (seconds <= 0 && !timesUpFired && userHasInteracted) {
+            if (seconds <= 0 && !timesUpFired) {
                 timesUpFired = true;
                 triggerTimesUp(el);
             } else if (seconds > 0 && timesUpFired) {
