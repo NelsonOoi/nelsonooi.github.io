@@ -338,6 +338,15 @@
                 <label class="label ptmono has-text-white">Number of slides</label>
                 <input id="num-slides" class="input dark-input" type="number" min="1" value="10">
             </div>
+            <div class="field">
+                <label class="label ptmono has-text-white">When time's up</label>
+                <label class="checkbox has-text-grey-light ptmono" style="display:block;margin-bottom:0.4rem;">
+                    <input id="opt-airhorn" type="checkbox" checked> Airhorn
+                </label>
+                <label class="checkbox has-text-grey-light ptmono" style="display:block;">
+                    <input id="opt-announcer" type="checkbox" checked> Announcer clips (every 30s)
+                </label>
+            </div>
             <button id="btn-create-session" class="button is-danger is-fullwidth btn-control mt-4">Create
                 Session</button>
         </div>
@@ -521,6 +530,8 @@
             sessionId = generateId();
             isPresenter = true;
             presentationId = extractPresentationId(slidesUrl);
+            enableAirhorn = document.getElementById('opt-airhorn').checked;
+            enableAnnouncer = document.getElementById('opt-announcer').checked;
 
             const sessionData = {
                 config: { slidesUrl, totalSlides },
@@ -736,8 +747,30 @@
 
         let timesUpFired = false;
         let timesUpTimeout = null;
+        let announcerInterval = null;
+        let enableAirhorn = true;
+        let enableAnnouncer = true;
         const airhorn = new Audio('https://orangefreesounds.com/wp-content/uploads/2025/01/Airhorn-sound-effect.mp3');
         airhorn.volume = 0.7;
+        const announcerClips = Array.from({length: 10}, (_, i) =>
+            new Audio(`assets/sounds/${String(i + 1).padStart(3, '0')}.wav`)
+        );
+        announcerClips.forEach(a => a.volume = 0.7);
+        let lastAnnouncerIdx = -1;
+
+        function playRandomAnnouncer() {
+            let idx;
+            do { idx = Math.floor(Math.random() * announcerClips.length); } while (idx === lastAnnouncerIdx);
+            lastAnnouncerIdx = idx;
+            const clip = announcerClips[idx];
+            clip.currentTime = 0;
+            clip.play().catch(() => {});
+        }
+
+        function stopAnnouncers() {
+            if (announcerInterval) { clearInterval(announcerInterval); announcerInterval = null; }
+            announcerClips.forEach(a => { a.pause(); a.currentTime = 0; });
+        }
 
         function renderTimerValue(elementId, seconds) {
             const el = document.getElementById(elementId);
@@ -757,7 +790,6 @@
         }
 
         function triggerTimesUp(timerEl) {
-            console.log('triggerTimesUp fired');
             timerEl.classList.add('times-up');
             timerEl.classList.remove('warning');
             document.body.classList.add('flash-red');
@@ -768,8 +800,14 @@
 
             document.getElementById('times-up-overlay').classList.add('active');
 
-            airhorn.currentTime = 0;
-            airhorn.play().catch(() => {});
+            if (enableAirhorn) {
+                airhorn.currentTime = 0;
+                airhorn.play().catch(() => {});
+            }
+            if (enableAnnouncer) {
+                playRandomAnnouncer();
+                announcerInterval = setInterval(playRandomAnnouncer, 30000);
+            }
 
             setTimeout(() => document.body.classList.remove('flash-red'), 1000);
             if (timesUpTimeout) clearTimeout(timesUpTimeout);
@@ -781,9 +819,11 @@
             clearTimesUp();
             airhorn.pause();
             airhorn.currentTime = 0;
+            stopAnnouncers();
         }
 
         function clearTimesUp() {
+            stopAnnouncers();
             document.querySelectorAll('.times-up').forEach(el => el.classList.remove('times-up'));
             document.querySelectorAll('.glitch-shake').forEach(el => el.classList.remove('glitch-shake'));
             document.getElementById('times-up-overlay').classList.remove('active');
