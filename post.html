@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>blog — nelson ooi</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: #000;
+            color: #ccc;
+            margin: 0;
+            padding: 2.5rem 5.5rem;
+        }
+
+        .back-link {
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+        }
+
+        article {
+            max-width: 700px;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+
+        article h1 {
+            font-size: 1.5rem;
+            color: #eee;
+            margin: 0 0 0.3rem 0;
+        }
+
+        article h2 {
+            font-size: 1.2rem;
+            color: #ddd;
+            margin: 2rem 0 0.5rem 0;
+        }
+
+        article h3 {
+            font-size: 1.05rem;
+            color: #ddd;
+            margin: 1.5rem 0 0.5rem 0;
+        }
+
+        article p {
+            margin: 0.8rem 0;
+        }
+
+        article code {
+            background: #1a1a1a;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-family: PTMono, monospace;
+            font-size: 0.85rem;
+        }
+
+        article pre {
+            background: #111;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        article pre code {
+            background: none;
+            padding: 0;
+        }
+
+        article img {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+
+        article blockquote {
+            border-left: 3px solid #333;
+            margin: 1rem 0;
+            padding: 0.5rem 1rem;
+            color: #888;
+        }
+
+        article ul, article ol {
+            padding-left: 1.5rem;
+        }
+
+        article li {
+            margin-bottom: 0.3rem;
+        }
+
+        .post-meta {
+            color: #666;
+            font-size: 0.8rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="blog.html" class="back-link ptmono">← blog</a>
+    <article class="ptmono" id="content"></article>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        const slug = new URLSearchParams(location.search).get('slug');
+        if (!slug) {
+            location.href = 'blog.html';
+        } else {
+            fetch(`posts/${slug}.md`)
+                .then(r => {
+                    if (!r.ok) throw new Error('Post not found');
+                    return r.text();
+                })
+                .then(md => {
+                    const fmMatch = md.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+                    let body = md;
+                    let meta = {};
+                    if (fmMatch) {
+                        body = md.slice(fmMatch[0].length);
+                        fmMatch[1].split('\n').forEach(line => {
+                            const [k, ...v] = line.split(':');
+                            if (k && v.length) meta[k.trim()] = v.join(':').trim();
+                        });
+                    }
+
+                    if (meta.title) document.title = meta.title + ' — nelson ooi';
+
+                    const dateHtml = meta.date ? `<div class="post-meta">${meta.date}</div>` : '';
+                    document.getElementById('content').innerHTML = dateHtml + marked.parse(body);
+                })
+                .catch(() => {
+                    document.getElementById('content').innerHTML = '<p>Post not found.</p>';
+                });
+        }
+    </script>
+</body>
+
+</html>

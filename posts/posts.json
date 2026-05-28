@@ -1,0 +1,13 @@
+[
+  {
+    "title": "Hello World",
+    "date": "2026-05-27",
+    "description": "My first blog post.",
+    "slug": "hello-world"
+  },
+  {
+    "title": "on the unreasonable creativity of ai",
+    "date": "2026-05-27",
+    "slug": "creativity"
+  }
+]

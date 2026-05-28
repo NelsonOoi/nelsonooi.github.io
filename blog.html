@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>blog — nelson ooi</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: #000;
+            color: #ccc;
+            margin: 0;
+            padding: 2.5rem 5.5rem;
+        }
+
+        .post-list {
+            list-style: none;
+            padding: 0;
+            margin: 2rem 0 0 0;
+        }
+
+        .post-item {
+            margin-bottom: 2rem;
+        }
+
+        .post-item a {
+            font-size: 1.1rem;
+            text-decoration: none;
+        }
+
+        .post-date {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.2rem;
+        }
+
+        .post-desc {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 0.3rem;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" class="site-title mona" style="text-decoration:none;">nelson ooi</a>
+    <h2 class="ptmono" style="color:#999; font-size:0.95rem; margin-top:1.5rem;">blog</h2>
+
+    <ul class="post-list ptmono" id="posts"></ul>
+
+    <script>
+        fetch('posts/posts.json')
+            .then(r => r.json())
+            .then(posts => {
+                const ul = document.getElementById('posts');
+                posts.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = 'post-item';
+                    li.innerHTML = `
+                        <a href="post.html?slug=${p.slug}">${p.title}</a>
+                        <div class="post-date">${p.date}</div>
+                        ${p.description ? `<div class="post-desc">${p.description}</div>` : ''}
+                    `;
+                    ul.appendChild(li);
+                });
+            });
+    </script>
+</body>
+
+</html>
