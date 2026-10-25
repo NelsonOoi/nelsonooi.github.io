@@ -424,6 +424,7 @@
         tagline: 'Loyalists pass decrees while a hidden Cabal schemes to put the Usurper in power.',
         minPlayers: 5,
         maxPlayers: 10,
+        seated: true,
         options: [],
         rules: '<p>Players are secretly <b>Loyalists</b> or members of the <b>Cabal</b>; one Cabal member is <b>the Usurper</b>. The Cabal know each other. The Usurper only knows them in 5–6 player games.</p>' +
             '<p><b>Each round</b> the Speaker role passes to the next player, who nominates a Deputy. Everyone votes Aye or Nay. If the vote fails, unrest rises; at 3 unrest the top decree is enacted automatically.</p>' +

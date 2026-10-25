@@ -4,6 +4,10 @@ const crypto = require('crypto');
 const SDG = require('../games/core.js');
 require('../games/nightfall.js');
 require('../games/usurper.js');
+require('../games/mole.js');
+require('../games/cipher.js');
+require('../games/holdem.js');
+require('../games/blackjack.js');
 const { store } = require('./_store.js');
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -47,6 +51,7 @@ function makeView(rec, pid) {
     return {
         v: rec.v,
         ps: presence(rec, pid, now),
+        now,
         view: {
             code: room.code, hostId: room.hostId, gameId: room.gameId, options: room.options,
             players: room.players.map(p => ({ id: p.id, name: p.name, connected: p.id === pid || online(rec, p.id, now) })),
@@ -177,7 +182,7 @@ const ops = {
             await store().touch(code, body.pid);
             rec.seen[body.pid] = Date.now();
         }
-        if (body.v === rec.v && body.ps === presence(rec, body.pid, Date.now())) return { same: true };
+        if (body.v === rec.v && body.ps === presence(rec, body.pid, Date.now())) return { same: true, now: Date.now() };
         return makeView(rec, body.pid);
     },
 

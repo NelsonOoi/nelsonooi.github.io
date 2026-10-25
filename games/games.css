@@ -354,12 +354,13 @@ select {
 
 .seg {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.4rem;
     margin: 0.4rem 0;
 }
 
 .seg button {
-    flex: 1;
+    flex: 1 1 6rem;
     background: #000;
     color: #999;
     border: 1px solid #333;
@@ -663,4 +664,327 @@ button.prow:disabled {
 #toast.show {
     opacity: 1;
     transform: translate(-50%, 0);
+}
+
+.timer {
+    font-variant-numeric: tabular-nums;
+}
+
+/* playing cards (hold'em, blackjack) */
+.pcard {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 3.6rem;
+    border-radius: 4px;
+    background: #eee;
+    color: #111;
+    font-size: 1.05rem;
+    line-height: 1.05;
+    vertical-align: middle;
+}
+
+.pcard i {
+    font-style: normal;
+}
+
+.pcard.red {
+    color: #c0392b;
+}
+
+.pcard.back {
+    background: repeating-linear-gradient(45deg, #1a2233, #1a2233 4px, #24314a 4px, #24314a 8px);
+    border: 1px solid #333;
+}
+
+.pcard.empty {
+    background: transparent;
+    border: 1px dashed #2a2a2a;
+}
+
+.pcard.sm {
+    width: 1.7rem;
+    height: 2.4rem;
+    font-size: 0.75rem;
+    border-radius: 3px;
+}
+
+/* hold'em */
+.hboard {
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0.5rem 0;
+}
+
+/* your two hole cards, with your current best hand underneath */
+.hmine {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0.75rem 0;
+}
+
+.hmine .pcard {
+    width: 3.4rem;
+    height: 4.7rem;
+    font-size: 1.4rem;
+}
+
+.hmine>div {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+
+.hcards {
+    display: inline-flex;
+    gap: 0.15rem;
+}
+
+.hraise {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 0 0.25rem;
+}
+
+.hraise .btn {
+    padding: 0.45rem 0.9rem;
+}
+
+.hamt {
+    flex: 1;
+    text-align: center;
+    font-size: 1.3rem;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+/* blackjack */
+.bjcards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0.35rem 0;
+}
+
+.bjhand.mine {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 0.6rem;
+}
+
+.bjhand.mine .pcard {
+    width: 3rem;
+    height: 4.2rem;
+    font-size: 1.2rem;
+}
+
+.bjacts {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.bjacts .btn {
+    flex: 1;
+    padding: 0.6rem 0.4rem;
+}
+
+.prow.bjrow {
+    align-items: flex-start;
+}
+
+.bjothers {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.bjothers .bjcards {
+    justify-content: flex-end;
+    margin: 0;
+}
+
+.bjothers .small {
+    text-align: right;
+}
+
+/* cipher */
+.cteams {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+}
+
+.cteams .card {
+    margin: 0;
+}
+
+.cteam.red {
+    border-top: 2px solid var(--cabal);
+}
+
+.cteam.blue {
+    border-top: 2px solid var(--loyal);
+}
+
+.cname {
+    margin-top: 0.3rem;
+    font-size: 0.85rem;
+}
+
+.tag.red {
+    border-color: var(--cabal);
+    color: var(--cabal);
+}
+
+.tag.blue {
+    border-color: var(--loyal);
+    color: var(--loyal);
+}
+
+.cturn.red,
+.cscore .red,
+details .red,
+.cipher p .red {
+    color: var(--cabal);
+}
+
+.cturn.blue,
+.cscore .blue,
+details .blue,
+.cipher p .blue {
+    color: var(--loyal);
+}
+
+.cscore {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.6rem;
+    font-size: 0.85rem;
+}
+
+.cgrid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.3rem;
+    margin: 0.6rem 0;
+}
+
+.wcard {
+    aspect-ratio: 1.35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem;
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 4px;
+    color: #ddd;
+    font-size: clamp(0.58rem, 2.4vw, 0.8rem);
+    overflow-wrap: anywhere;
+    line-height: 1.15;
+}
+
+button.wcard:disabled {
+    opacity: 1;
+}
+
+.wcard.pick {
+    cursor: pointer;
+}
+
+.wcard.sel {
+    outline: 2px solid var(--link);
+    outline-offset: 1px;
+    color: #fff;
+}
+
+/* spymaster's key: unrevealed cards tinted by owner */
+.wcard.key.red {
+    border-color: var(--cabal);
+    color: #f0a39d;
+}
+
+.wcard.key.blue {
+    border-color: var(--loyal);
+    color: #a9c9ff;
+}
+
+.wcard.key.neutral {
+    color: #8a8471;
+}
+
+.wcard.key.assassin {
+    border: 1px solid #fff;
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.wcard.up {
+    color: #000;
+    text-decoration: line-through;
+    text-decoration-color: rgba(0, 0, 0, 0.35);
+}
+
+.wcard.up.red {
+    background: var(--cabal);
+    border-color: var(--cabal);
+}
+
+.wcard.up.blue {
+    background: var(--loyal);
+    border-color: var(--loyal);
+}
+
+.wcard.up.neutral {
+    background: #3a362d;
+    border-color: #3a362d;
+    color: #8a8471;
+}
+
+.wcard.up.assassin {
+    background: #fff;
+    border-color: #fff;
+}
+
+.seg.nums button {
+    flex: 1 1 2.2rem;
+    padding: 0.45rem 0;
+}
+
+/* mole */
+.mlocs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+}
+
+.mloc {
+    font-size: 0.75rem;
+    border: 1px solid #262626;
+    border-radius: 3px;
+    padding: 0.2rem 0.45rem;
+    color: #999;
+    background: #000;
+}
+
+button.mloc.pick {
+    border-color: #3a3a3a;
+    color: #ccc;
+    cursor: pointer;
+}
+
+.cabal-text {
+    color: var(--cabal);
 }

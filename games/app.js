@@ -76,6 +76,7 @@
     }
 
     function apply(res) {
+        if (res && res.now) SDG.clockOffset = res.now - Date.now();
         if (!res || res.same || res.v < known.v) return;
         known = { v: res.v, ps: res.ps };
         setView(res.view);
@@ -249,7 +250,7 @@
             }
             h += '</span></div>';
         });
-        h += '</div>' + (isHost ? '<div class="small muted">Seating order matters in Usurper. Use ↑ to match how you’re sitting.</div>' : '') + '</div>';
+        h += '</div>' + (isHost && g.seated ? '<div class="small muted">Seating order matters in ' + esc(g.name) + '. Use ↑ to match how you’re sitting.</div>' : '') + '</div>';
 
         h += '<div class="card"><div class="small muted">game</div>';
         if (isHost) {
@@ -307,8 +308,15 @@
     function render() {
         var focused = document.activeElement && document.activeElement.id;
         var scroll = window.scrollY;
+        // Keep what's typed in game inputs (e.g. a clue) when someone else's move re-renders the screen.
+        var typed = {};
+        app.querySelectorAll('input[id]:not([type=checkbox])').forEach(function (el) { typed[el.id] = el.value; });
         app.classList.toggle('home-screen', screen === 'home');
         app.innerHTML = screen === 'home' ? renderHome() : renderRoom();
+        if (screen === 'room') Object.keys(typed).forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.value = typed[id];
+        });
         app.querySelectorAll('details[data-key]').forEach(function (d) {
             if (ui.open[d.dataset.key]) d.open = true;
         });
@@ -328,11 +336,20 @@
     }, true);
 
     document.addEventListener('click', function (e) {
-        var el = e.target.closest('[data-act],[data-ui],button[id]');
+        var el = e.target.closest('[data-act],[data-ui],[data-uiset],button[id]');
         if (!el || el.disabled) return;
         if (el.dataset.confirm && !confirm(el.dataset.confirm)) return;
-        if (el.dataset.act) return sendAction(JSON.parse(el.dataset.act));
+        if (el.dataset.act) {
+            // data-fields="a,b": copy those inputs' values into the action before sending.
+            var a = JSON.parse(el.dataset.act);
+            (el.dataset.fields || '').split(',').filter(Boolean).forEach(function (f) {
+                var input = document.getElementById(f);
+                a[f] = input ? input.value : '';
+            });
+            return sendAction(a);
+        }
         if (el.dataset.ui) { ui[el.dataset.ui] = !ui[el.dataset.ui]; return render(); }
+        if (el.dataset.uiset) { Object.assign(ui, JSON.parse(el.dataset.uiset)); return render(); }
         switch (el.id) {
             case 'join': return doJoin();
             case 'host': return doHost();
@@ -352,6 +369,16 @@
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && (e.target.id === 'code' || e.target.id === 'name')) doJoin();
     });
+
+    // Countdowns tick locally; when one runs out, re-render once so the game can show what comes next.
+    var expired = {};
+    setInterval(function () {
+        app.querySelectorAll('[data-deadline]').forEach(function (el) {
+            var left = Math.max(0, Math.ceil((+el.dataset.deadline - SDG.now()) / 1000));
+            el.textContent = Math.floor(left / 60) + ':' + ('0' + left % 60).slice(-2);
+            if (!left && !expired[el.dataset.deadline]) { expired[el.dataset.deadline] = true; render(); }
+        });
+    }, 500);
 
     // ---------- boot ----------
 
