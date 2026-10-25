@@ -50,6 +50,18 @@ header h1 {
     main {
         margin: 0;
     }
+
+    /* Home: join/host on the left, the game list on the right. */
+    main.home-screen {
+        max-width: 62rem;
+    }
+
+    .home-cols {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 2rem;
+        align-items: start;
+    }
 }
 
 main {

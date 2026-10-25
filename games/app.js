@@ -214,7 +214,7 @@
         var code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
         var saved = store.get('session');
         var name = store.get('name') || '';
-        var h = '';
+        var h = '<div class="home-cols"><div>';
         if (notice) h += '<div class="card banner">' + esc(notice) + '</div>';
         h += '<div class="card"><label class="lbl" for="name">your name</label>' +
             '<input id="name" maxlength="16" autocomplete="off" placeholder="name" value="' + esc(name) + '">' +
@@ -223,15 +223,14 @@
             '<button class="btn primary" id="join">join</button></div>' +
             '<div class="or">or</div><button class="btn wide" id="host">host a new room</button>';
         if (saved) h += '<button class="btn subtle wide" id="rejoin">rejoin room ' + esc(saved.code) + '</button>';
-        h += '</div>';
-        h += '<h3 class="sub">games</h3>';
+        h += '</div></div><div>';
         SDG.order.forEach(function (id) {
             var g = SDG.games[id];
             h += '<details class="card" data-key="rules-' + id + '"><summary><b>' + esc(g.name) + '</b> <span class="muted small">' +
                 g.minPlayers + '–' + g.maxPlayers + ' players</span><div class="small muted tagline">' + esc(g.tagline) + '</div></summary>' +
                 '<div class="rules">' + g.rules + '</div></details>';
         });
-        return h;
+        return h + '</div></div>';
     }
 
     function renderLobby(v) {
@@ -308,6 +307,7 @@
     function render() {
         var focused = document.activeElement && document.activeElement.id;
         var scroll = window.scrollY;
+        app.classList.toggle('home-screen', screen === 'home');
         app.innerHTML = screen === 'home' ? renderHome() : renderRoom();
         app.querySelectorAll('details[data-key]').forEach(function (d) {
             if (ui.open[d.dataset.key]) d.open = true;
