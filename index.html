@@ -12,10 +12,18 @@
             margin: 0;
             padding: 2.5rem 5.5rem;
         }
+
+        @media (max-width: 800px) {
+            body {
+                padding: 2rem 1.25rem;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <div class="home">
+    <main>
     <div class="portrait-wrapper mb-5">
         <img src="./assets/images/img.png" id="portrait" alt="nelson ooi" />
     </div>
@@ -50,6 +58,13 @@
             <li><a href="games/">games</a></li>
         </ul>
     </nav>
+    </main>
+
+    <aside class="feed ptmono" id="feed" hidden>
+        <h2 class="feed-title">lately</h2>
+        <ul class="feed-list" id="feed-list"></ul>
+    </aside>
+    </div>
 
     <script>
         (function () {
@@ -77,6 +92,62 @@
                 requestAnimationFrame(animate);
             }
             animate();
+        })();
+    </script>
+
+    <script>
+        // Right-hand feed: latest blog posts (posts/posts.json) merged with curated posts (feed.json).
+        (function () {
+            var MAX_ITEMS = 10;
+            var esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            var get = url => fetch(url).then(r => r.ok ? r.json() : []).catch(() => []);
+
+            function sourceOf(url) {
+                if (/linkedin\.com/.test(url)) return 'linkedin';
+                if (/(^|\/\/|\.)(x|twitter)\.com/.test(url)) return 'x';
+                return 'link';
+            }
+
+            // LinkedIn post URLs carry an activity id; its embed iframe is keyed on that urn.
+            function linkedinEmbed(url) {
+                var m = url.match(/urn:li:(activity|share|ugcPost):(\d+)/) || url.match(/(activity)-(\d+)/);
+                return m && 'https://www.linkedin.com/embed/feed/update/urn:li:' + m[1] + ':' + m[2];
+            }
+
+            function render(item) {
+                if (item.embed && item.source === 'x') {
+                    // The quote and link stay visible if widgets.js fails to load.
+                    return `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true"><p class="feed-text">${esc(item.text)}</p><a href="${esc(item.url)}" class="feed-author">— ${esc(item.author)}</a></blockquote>`;
+                }
+                if (item.embed && item.source === 'linkedin' && linkedinEmbed(item.url)) {
+                    return `<iframe src="${esc(linkedinEmbed(item.url))}" height="${+item.height || 500}" loading="lazy" title="linkedin post"></iframe>`;
+                }
+                return `<a href="${esc(item.url)}">
+                    <div class="feed-meta">${item.source}${item.date ? ' · ' + esc(item.date) : ''}</div>
+                    <div class="feed-text">${esc(item.text)}</div>
+                    ${item.author ? `<div class="feed-author">— ${esc(item.author)}</div>` : ''}
+                </a>`;
+            }
+
+            Promise.all([get('posts/posts.json'), get('feed.json')]).then(([posts, curated]) => {
+                var items = posts
+                    .map(p => ({ source: 'blog', url: 'post.html?slug=' + p.slug, text: p.title, date: p.date }))
+                    .concat(curated.map(c => Object.assign({}, c, { source: sourceOf(c.url) })))
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                    .slice(0, MAX_ITEMS);
+                if (!items.length) return;
+
+                document.getElementById('feed-list').innerHTML =
+                    items.map(i => `<li class="feed-item">${render(i)}</li>`).join('');
+                document.getElementById('feed').hidden = false;
+
+                if (items.some(i => i.embed && i.source === 'x')) {
+                    var s = document.createElement('script');
+                    s.src = 'https://platform.x.com/widgets.js';
+                    s.async = true;
+                    document.body.appendChild(s);
+                }
+            });
         })();
     </script>
 </body>
