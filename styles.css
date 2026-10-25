@@ -236,6 +236,25 @@ a:hover {
     border-radius: 6px;
 }
 
+/* On desktop the feed scrolls inside its column; the page stays put. */
+@media (min-width: 801px) {
+    .feed:not([hidden]) {
+        position: sticky;
+        top: 2.5rem;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 5rem);
+    }
+
+    .feed-list {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: #333 transparent;
+        padding-right: 0.5rem;
+    }
+}
+
 @media (max-width: 800px) {
     .home {
         grid-template-columns: minmax(0, 1fr);
