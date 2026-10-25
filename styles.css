@@ -251,7 +251,22 @@ a:hover {
         overscroll-behavior: contain;
         scrollbar-width: thin;
         scrollbar-color: #333 transparent;
+        color-scheme: dark;
         padding-right: 0.5rem;
+    }
+
+    /* Safari ignores scrollbar-color */
+    .feed-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .feed-list::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .feed-list::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 3px;
     }
 }
 
