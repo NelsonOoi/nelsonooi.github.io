@@ -1,16 +1,9 @@
-// Rooms, networking and screens. The host's browser holds the real game state and
-// sends each player only their own view over a WebRTC data channel (PeerJS).
+// Screens and syncing. The game runs on the server (api/game.js); each phone sends
+// actions and polls for its own view of the room.
 (function () {
     var SDG = window.SDG, esc = SDG.esc;
-    var PREFIX = 'nelsonooi-sdg-';
-    var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    var MAX_PLAYERS = 20;
-    // Optional TURN relay, e.g. from a free Metered (metered.ca) or Cloudflare account:
-    //   [{ urls: 'turn:…:3478', username: '…', credential: '…' }]
-    // Without one, phones connect directly. That works on most wifi and cellular
-    // networks, but a few strict networks need a relay, and the "hide my IP" option
-    // only appears when a relay is set. (PeerJS's own relay servers no longer exist.)
-    var TURN_SERVERS = [];
+    var API = '/api/game';
+    var POLL_MS = 1500, BEAT_MS = 8000;
     var app = document.getElementById('app');
 
     // ---------- storage (may be unavailable) ----------
@@ -20,419 +13,73 @@
         del: function (k) { try { localStorage.removeItem('sdg-' + k); } catch (e) { } }
     };
 
-    function randomId() {
-        var a = new Uint8Array(8);
-        crypto.getRandomValues(a);
-        return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
-    }
-    function randomCode() {
-        var s = '';
-        for (var i = 0; i < 4; i++) s += CODE_CHARS[SDG.randInt(CODE_CHARS.length)];
-        return s;
-    }
-
-    var myId = store.get('id');
-    if (!myId) { myId = randomId(); store.set('id', myId); }
-
     // ---------- state ----------
     var screen = 'home';      // home | room
-    var mode = null;          // host | client
-    var peer = null;
+    var session = null;       // { code, pid, token, name }
     var status = 'connecting';
     var view = null;          // what this device renders
+    var known = { v: 0, ps: '' };
     var ui = { open: {} };    // local-only UI state (role card shown, open <details>)
     var notice = '';
+    var pollTimer = null, polling = false, lastBeat = 0, failures = 0, busy = false;
 
-    // host
-    var room = null;
-    var conns = {};           // pid -> DataConnection
-    var lastSeen = {};
-    // client
-    var conn = null, clientInfo = null, lastHeard = 0, everConnected = false, retryTimer = null;
+    function api(op, data) {
+        return fetch(API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.assign({ op: op }, data))
+        }).then(function (r) {
+            return r.json().catch(function () { return { error: 'Bad response from the server.' }; }).then(function (j) {
+                if (!r.ok || j.error) {
+                    var e = new Error(j.error || 'Server error (' + r.status + ').');
+                    e.reason = j.reason;
+                    e.http = true;
+                    throw e;
+                }
+                return j;
+            });
+        });
+    }
 
-    function peerOptions() {
-        var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }].concat(TURN_SERVERS) };
-        if (TURN_SERVERS.length && store.get('relay')) config.iceTransportPolicy = 'relay';
-        return { debug: store.get('debug') || 1, config: config };
+    function creds() {
+        return { code: session.code, pid: session.pid, token: session.token };
     }
 
     function cleanName(n) {
         return String(n || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 16);
     }
 
-    // =====================================================================
-    // Host
-    // =====================================================================
+    // ---------- session ----------
 
-    function defaultOptions(gameId) {
-        var o = {};
-        SDG.games[gameId].options.forEach(function (opt) { o[opt.key] = opt.def; });
-        return o;
-    }
-
-    function hostCreate(name) {
-        room = {
-            code: randomCode(), hostId: myId, gameId: SDG.order[0],
-            options: defaultOptions(SDG.order[0]),
-            players: [{ id: myId, name: name, connected: true }],
-            game: null, savedAt: Date.now()
-        };
-        startHost(true);
-    }
-
-    function hostResume(saved) {
-        room = saved;
-        room.players.forEach(function (p) { p.connected = p.id === myId; });
-        startHost(false);
-    }
-
-    function startHost(fresh) {
-        mode = 'host';
+    function enterRoom(res, name) {
+        session = { code: res.code, pid: res.pid, token: res.token, name: name };
+        store.set('session', session);
         screen = 'room';
-        status = 'connecting';
-        persist();
-        history.replaceState(null, '', '?room=' + room.code);
+        status = 'online';
         view = null;
-        setView(makeView(myId));
-        openHostPeer(fresh, 0);
-        requestWakeLock();
+        known = { v: 0, ps: '' };
+        lastBeat = Date.now();
+        history.replaceState(null, '', '?room=' + res.code);
+        apply(res);
+        schedulePoll(POLL_MS);
     }
 
-    function openHostPeer(fresh, attempt) {
-        if (peer) peer.destroy();
-        peer = new Peer(PREFIX + room.code, peerOptions());
-        peer.on('open', function () { status = 'online'; render(); });
-        peer.on('connection', hostAccept);
-        peer.on('disconnected', function () {
-            status = 'reconnecting';
-            render();
-            setTimeout(function () { if (peer && !peer.destroyed && peer.disconnected) peer.reconnect(); }, 1000);
-        });
-        peer.on('error', function (err) {
-            if (err.type === 'unavailable-id') {
-                if (fresh && room.players.length === 1 && attempt < 5) {
-                    room.code = randomCode();
-                    persist();
-                    history.replaceState(null, '', '?room=' + room.code);
-                    return openHostPeer(true, attempt + 1);
-                }
-                // Our old registration hasn't expired yet (e.g. after a reload). Keep trying.
-                status = 'reclaiming room';
-                render();
-                return setTimeout(function () { if (mode === 'host') openHostPeer(false, attempt + 1); }, 3000);
-            }
-            if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
-                status = 'reconnecting';
-                render();
-                setTimeout(function () {
-                    if (mode !== 'host') return;
-                    if (peer.destroyed) openHostPeer(false, attempt + 1);
-                    else if (peer.disconnected) peer.reconnect();
-                }, 2000);
-            }
-        });
-    }
-
-    function hostAccept(c) {
-        var pid = null;
-        c.on('data', function (msg) {
-            if (!msg || typeof msg !== 'object') return;
-            if (msg.t === 'hello') {
-                pid = hostHello(c, msg);
-                return;
-            }
-            if (!pid || conns[pid] !== c) return;
-            lastSeen[pid] = Date.now();
-            if (msg.t === 'ping') return c.send({ t: 'pong' });
-            if (msg.t === 'act') return hostAction(pid, msg.a);
-            if (msg.t === 'leave') return hostLeave(pid);
-        });
-        c.on('close', function () {
-            if (pid && conns[pid] === c) {
-                delete conns[pid];
-                setConnected(pid, false);
-            }
-        });
-    }
-
-    function findPlayer(pid) {
-        for (var i = 0; i < room.players.length; i++) if (room.players[i].id === pid) return room.players[i];
-        return null;
-    }
-
-    function hostHello(c, msg) {
-        var pid = String(msg.pid || '').slice(0, 32), name = cleanName(msg.name);
-        var p = findPlayer(pid);
-        if (!p && room.game) {
-            // Lost their device id (new browser?) — let them reclaim a disconnected seat by name.
-            p = room.players.filter(function (x) {
-                return !x.connected && x.name.toLowerCase() === name.toLowerCase();
-            })[0];
-            if (!p) { c.send({ t: 'reject', reason: 'This game has already started.' }); return null; }
-        }
-        if (!p) {
-            if (!name) { c.send({ t: 'reject', reason: 'Please enter a name.' }); return null; }
-            if (room.players.length >= MAX_PLAYERS) { c.send({ t: 'reject', reason: 'This room is full.' }); return null; }
-            p = { id: pid, name: uniqueName(name), connected: true };
-            room.players.push(p);
-        }
-        if (conns[p.id] && conns[p.id] !== c) conns[p.id].close();
-        conns[p.id] = c;
-        lastSeen[p.id] = Date.now();
-        p.connected = true;
-        c.send({ t: 'welcome', pid: p.id });
-        changed();
-        return p.id;
-    }
-
-    function uniqueName(name) {
-        var taken = function (n) { return room.players.some(function (p) { return p.name.toLowerCase() === n.toLowerCase(); }); };
-        if (!taken(name)) return name;
-        for (var i = 2; ; i++) if (!taken(name + ' ' + i)) return name + ' ' + i;
-    }
-
-    function setConnected(pid, on) {
-        var p = findPlayer(pid);
-        if (p && p.connected !== on) { p.connected = on; changed(); }
-    }
-
-    function hostLeave(pid) {
-        if (conns[pid]) { conns[pid].close(); delete conns[pid]; }
-        if (!room.game) room.players = room.players.filter(function (p) { return p.id !== pid; });
-        else setConnected(pid, false);
-        changed();
-    }
-
-    function hostAction(pid, a) {
-        if (!a || typeof a !== 'object' || typeof a.type !== 'string') return;
-        var isHost = pid === room.hostId;
-        try {
-            if (a.type.indexOf('room:') === 0) {
-                if (!isHost) SDG.fail('Only the host can do that.');
-                roomAction(a);
-            } else {
-                if (!room.game) return;
-                SDG.games[room.gameId].act(room.game, pid, a, { isHost: isHost });
-            }
-        } catch (e) {
-            if (!e.userFacing) console.error(e);
-            var msg = e.userFacing ? e.message : 'Something went wrong.';
-            if (pid === myId) toast(msg);
-            else if (conns[pid]) conns[pid].send({ t: 'error', msg: msg });
-            return;
-        }
-        changed();
-    }
-
-    function roomAction(a) {
-        var g = SDG.games[room.gameId];
-        switch (a.type) {
-            case 'room:game':
-                if (room.game || !SDG.games[a.gameId]) return;
-                room.gameId = a.gameId;
-                room.options = defaultOptions(a.gameId);
-                return;
-            case 'room:option':
-                if (room.game) return;
-                var opt = g.options.filter(function (o) { return o.key === a.key; })[0];
-                if (!opt) return;
-                if (opt.type === 'bool') room.options[a.key] = !!a.value;
-                else if (opt.choices.some(function (c) { return c[0] === a.value; })) room.options[a.key] = a.value;
-                return;
-            case 'room:kick':
-                if (room.game || a.pid === myId) return;
-                if (conns[a.pid]) { conns[a.pid].send({ t: 'kicked' }); setTimeout(closeLater(conns[a.pid]), 300); delete conns[a.pid]; }
-                room.players = room.players.filter(function (p) { return p.id !== a.pid; });
-                return;
-            case 'room:move':
-                if (room.game) return;
-                var i = room.players.findIndex(function (p) { return p.id === a.pid; });
-                if (i > 0) { var t = room.players[i - 1]; room.players[i - 1] = room.players[i]; room.players[i] = t; }
-                return;
-            case 'room:start':
-                if (room.game) return;
-                var n = room.players.length;
-                if (n < g.minPlayers || n > g.maxPlayers) SDG.fail(g.name + ' needs ' + g.minPlayers + '–' + g.maxPlayers + ' players.');
-                room.game = g.setup(room.players, room.options);
-                return;
-            case 'room:lobby':
-                room.game = null;
-                // Drop players who left mid-game.
-                room.players = room.players.filter(function (p) { return p.connected; });
-                return;
-        }
-    }
-
-    function closeLater(c) { return function () { try { c.close(); } catch (e) { } }; }
-
-    function makeView(pid) {
-        var g = SDG.games[room.gameId];
-        return {
-            code: room.code, hostId: room.hostId, gameId: room.gameId, options: room.options,
-            players: room.players.map(function (p) { return { id: p.id, name: p.name, connected: p.connected }; }),
-            you: pid,
-            game: room.game ? g.view(room.game, pid) : null
-        };
-    }
-
-    function persist() {
-        room.savedAt = Date.now();
-        store.set('host', room);
-    }
-
-    function changed() {
-        persist();
-        room.players.forEach(function (p) {
-            if (p.id === myId) return;
-            var c = conns[p.id];
-            if (c && c.open) {
-                try { c.send({ t: 'view', v: makeView(p.id) }); } catch (e) { }
-            }
-        });
-        setView(makeView(myId));
-    }
-
-    function hostClose() {
-        Object.keys(conns).forEach(function (pid) { try { conns[pid].send({ t: 'closed' }); } catch (e) { } });
-        store.del('host');
-        setTimeout(function () { goHome(''); }, 300);
-    }
-
-    // Mark players offline if they stop pinging (data channel 'close' can lag).
-    setInterval(function () {
-        if (mode !== 'host') return;
-        var now = Date.now();
-        room.players.forEach(function (p) {
-            if (p.id !== myId && p.connected && now - (lastSeen[p.id] || 0) > 15000) {
-                if (conns[p.id]) { closeLater(conns[p.id])(); delete conns[p.id]; }
-                setConnected(p.id, false);
-            }
-        });
-    }, 5000);
-
-    // =====================================================================
-    // Client
-    // =====================================================================
-
-    function clientJoin(code, name, pid) {
-        mode = 'client';
-        screen = 'room';
-        status = 'connecting';
-        everConnected = false;
+    function endSession(msg) {
+        clearTimeout(pollTimer);
+        store.del('session');
+        session = null;
         view = null;
-        clientInfo = { code: code, name: name, pid: pid || myId };
-        store.set('client', clientInfo);
-        history.replaceState(null, '', '?room=' + code);
+        screen = 'home';
+        notice = msg || '';
+        history.replaceState(null, '', location.pathname);
         render();
-        if (peer) peer.destroy();
-        peer = new Peer(peerOptions());
-        peer.on('open', clientConnect);
-        peer.on('disconnected', function () {
-            setTimeout(function () { if (peer && !peer.destroyed && peer.disconnected) peer.reconnect(); }, 1000);
-        });
-        peer.on('error', function (err) {
-            if (mode !== 'client') return;
-            if (err.type === 'peer-unavailable') {
-                status = everConnected ? 'host offline, retrying' : 'room not found, retrying';
-                render();
-                scheduleRetry(3000);
-            } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
-                status = 'reconnecting';
-                render();
-                setTimeout(function () {
-                    if (mode !== 'client') return;
-                    if (peer.destroyed) clientJoin(clientInfo.code, clientInfo.name, clientInfo.pid);
-                    else if (peer.disconnected) peer.reconnect();
-                }, 2000);
-            }
-        });
     }
 
-    function scheduleRetry(ms) {
-        clearTimeout(retryTimer);
-        retryTimer = setTimeout(function () { if (mode === 'client') clientConnect(); }, ms);
+    function apply(res) {
+        if (!res || res.same || res.v < known.v) return;
+        known = { v: res.v, ps: res.ps };
+        setView(res.view);
     }
-
-    function clientConnect() {
-        if (!peer || peer.destroyed) return;
-        if (peer.disconnected) { peer.reconnect(); return scheduleRetry(2000); }
-        if (conn) { try { conn.close(); } catch (e) { } }
-        var c = conn = peer.connect(PREFIX + clientInfo.code, { reliable: true, serialization: 'json' });
-        c.on('open', function () {
-            lastHeard = Date.now();
-            c.send({ t: 'hello', pid: clientInfo.pid, name: clientInfo.name });
-        });
-        c.on('data', function (msg) {
-            if (c !== conn || !msg) return;
-            lastHeard = Date.now();
-            switch (msg.t) {
-                case 'welcome':
-                    everConnected = true;
-                    status = 'online';
-                    clientInfo.pid = msg.pid;
-                    store.set('client', clientInfo);
-                    render();
-                    break;
-                case 'view':
-                    status = 'online';
-                    setView(msg.v);
-                    break;
-                case 'error': toast(msg.msg); break;
-                case 'reject': store.del('client'); goHome(msg.reason); break;
-                case 'kicked': store.del('client'); goHome('The host removed you from the room.'); break;
-                case 'closed': store.del('client'); goHome('The host closed the room.'); break;
-            }
-        });
-        c.on('close', function () {
-            if (c !== conn || mode !== 'client') return;
-            status = 'reconnecting';
-            render();
-            scheduleRetry(1500);
-        });
-    }
-
-    function clientSend(msg) {
-        if (conn && conn.open) conn.send(msg);
-        else toast('Not connected — reconnecting…');
-    }
-
-    setInterval(function () {
-        if (mode !== 'client' || !conn) return;
-        if (conn.open) conn.send({ t: 'ping' });
-        if (everConnected && Date.now() - lastHeard > 12000 && status !== 'reconnecting') {
-            status = 'reconnecting';
-            render();
-            clientConnect();
-        }
-    }, 4000);
-
-    // Phones suspend background tabs; resync as soon as we're visible again.
-    document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState !== 'visible') return;
-        if (mode === 'client' && (!conn || !conn.open || Date.now() - lastHeard > 6000)) {
-            status = 'reconnecting';
-            render();
-            clientConnect();
-        }
-        if (mode === 'host') {
-            if (peer && peer.destroyed) openHostPeer(false, 0);
-            else if (peer && peer.disconnected) peer.reconnect();
-            requestWakeLock();
-        }
-    });
-
-    var wakeLock = null;
-    function requestWakeLock() {
-        if (!navigator.wakeLock || wakeLock) return;
-        navigator.wakeLock.request('screen').then(function (l) {
-            wakeLock = l;
-            l.addEventListener('release', function () { wakeLock = null; });
-        }).catch(function () { });
-    }
-
-    // =====================================================================
-    // Shared
-    // =====================================================================
 
     function setView(v) {
         // New game: start with the role card face down.
@@ -441,30 +88,111 @@
         render();
     }
 
-    function sendAction(a) {
-        if (mode === 'host') hostAction(myId, a);
-        else clientSend({ t: 'act', a: a });
+    function handleError(e) {
+        if (e.reason === 'gone') return endSession('The room has closed.');
+        if (e.reason === 'auth') return endSession('You’re no longer in this room.');
+        toast(e.http ? e.message : 'Can’t reach the server. Check your connection.');
     }
 
-    function goHome(msg) {
-        clearTimeout(retryTimer);
-        if (peer) { try { peer.destroy(); } catch (e) { } }
-        peer = null; conn = null; mode = null; room = null; conns = {}; view = null;
-        screen = 'home';
-        notice = msg || '';
-        history.replaceState(null, '', location.pathname);
-        render();
+    // ---------- polling ----------
+
+    function schedulePoll(ms) {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(poll, ms);
+    }
+
+    function poll() {
+        if (!session || polling) return;
+        if (document.hidden) return schedulePoll(POLL_MS);
+        polling = true;
+        var beat = Date.now() - lastBeat > BEAT_MS;
+        if (beat) lastBeat = Date.now();
+        api('view', Object.assign(creds(), { v: known.v, ps: known.ps, beat: beat })).then(function (res) {
+            polling = false;
+            failures = 0;
+            if (!session) return;
+            if (status !== 'online') { status = 'online'; render(); }
+            apply(res);
+            schedulePoll(POLL_MS);
+        }, function (e) {
+            polling = false;
+            if (!session) return;
+            if (e.reason === 'gone' || e.reason === 'auth') return handleError(e);
+            failures++;
+            if (status !== 'reconnecting') { status = 'reconnecting'; render(); }
+            schedulePoll(Math.min(POLL_MS * (failures + 1), 6000));
+        });
+    }
+
+    // Phones pause background tabs; catch up as soon as we're visible again.
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && session) { lastBeat = 0; schedulePoll(0); }
+    });
+
+    // ---------- actions ----------
+
+    function sendAction(a) {
+        if (!session || busy) return;
+        busy = true;
+        api('act', Object.assign(creds(), { action: a })).then(function (res) {
+            busy = false;
+            if (res.closed) return endSession('');
+            apply(res);
+        }, function (e) {
+            busy = false;
+            handleError(e);
+        });
     }
 
     function leave() {
-        if (mode === 'host') {
-            if (!confirm('Close this room for everyone?')) return;
-            return hostClose();
-        }
-        if (!confirm('Leave this room?')) return;
-        clientSend({ t: 'leave' });
-        store.del('client');
-        setTimeout(function () { goHome(''); }, 200);
+        var isHost = view && view.hostId === view.you;
+        if (!confirm(isHost ? 'Close this room for everyone?' : 'Leave this room?')) return;
+        if (isHost) return sendAction({ type: 'room:close' });
+        api('leave', creds()).catch(function () { });
+        endSession('');
+    }
+
+    function doHost() {
+        var name = readName();
+        if (!name || busy) return;
+        busy = true;
+        api('create', { name: name }).then(function (res) {
+            busy = false;
+            enterRoom(res, name);
+        }, function (e) { busy = false; handleError(e); });
+    }
+
+    function doJoin(code, name) {
+        name = name || readName();
+        if (!name || busy) return;
+        code = code || document.getElementById('code').value.toUpperCase().replace(/[^A-Z]/g, '');
+        if (code.length !== 4) { toast('Room codes are 4 letters'); return; }
+        var prev = store.get('session');
+        var mine = prev && prev.code === code ? { pid: prev.pid, token: prev.token } : {};
+        busy = true;
+        api('join', Object.assign({ code: code, name: name }, mine)).then(function (res) {
+            busy = false;
+            enterRoom(res, name);
+        }, function (e) {
+            busy = false;
+            if (!e.http && screen === 'room') {
+                // Auto-rejoin after a reload hit a network blip: keep trying.
+                status = 'reconnecting';
+                render();
+                return setTimeout(function () { if (screen === 'room' && !view) doJoin(code, name); }, 3000);
+            }
+            if (e.reason === 'gone') store.del('session');
+            if (screen === 'room' && !view) { session = null; screen = 'home'; render(); }
+            toast(e.http ? e.message : 'Can’t reach the server. Check your connection.');
+        });
+    }
+
+    function readName() {
+        var el = document.getElementById('name');
+        var name = cleanName(el && el.value);
+        if (!name) { toast('Enter your name first'); if (el) el.focus(); return null; }
+        store.set('name', name);
+        return name;
     }
 
     var toastTimer = null;
@@ -483,11 +211,9 @@
     // ---------- screens ----------
 
     function renderHome() {
-        var params = new URLSearchParams(location.search);
-        var code = (params.get('room') || '').toUpperCase();
-        var saved = store.get('host');
-        if (saved && Date.now() - saved.savedAt > 12 * 3600 * 1000) { store.del('host'); saved = null; }
-        var name = (store.get('client') || {}).name || store.get('name') || '';
+        var code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
+        var saved = store.get('session');
+        var name = store.get('name') || '';
         var h = '';
         if (notice) h += '<div class="card banner">' + esc(notice) + '</div>';
         h += '<div class="card"><label class="lbl" for="name">your name</label>' +
@@ -496,13 +222,8 @@
             '<div class="row2"><input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD" value="' + esc(code) + '">' +
             '<button class="btn primary" id="join">join</button></div>' +
             '<div class="or">or</div><button class="btn wide" id="host">host a new room</button>';
-        if (saved) h += '<button class="btn subtle wide" id="resume">resume hosting room ' + esc(saved.code) + '</button>';
+        if (saved) h += '<button class="btn subtle wide" id="rejoin">rejoin room ' + esc(saved.code) + '</button>';
         h += '</div>';
-        h += '<details class="card" data-key="privacy"><summary>privacy</summary>' +
-            '<p class="small">Phones connect directly to the host’s browser (WebRTC). That means the host’s device can see each player’s IP address, and players can see the host’s. Players never connect to each other. Game messages are encrypted in transit.</p>' +
-            (TURN_SERVERS.length ? '<p class="small">Turn this on to route your connection through a relay server so your IP stays hidden from other players. It may be slightly slower.</p>' +
-                '<label class="check"><input type="checkbox" id="relay"' + (store.get('relay') ? ' checked' : '') + '> route through relay (hide my IP)</label>' : '') +
-            '</details>';
         h += '<h3 class="sub">games</h3>';
         SDG.order.forEach(function (id) {
             var g = SDG.games[id];
@@ -565,16 +286,17 @@
     }
 
     function renderRoom() {
-        var h = '<div class="bar"><span class="code-sm">' + esc(view ? view.code : clientInfo ? clientInfo.code : '') + '</span>' +
+        var isHost = view && view.hostId === view.you;
+        var h = '<div class="bar"><span class="code-sm">' + esc(session ? session.code : '') + '</span>' +
             '<span class="status ' + (status === 'online' ? 'ok' : 'bad') + '">' + esc(status) + '</span>' +
-            '<button class="mini" id="leave">' + (mode === 'host' ? 'close room' : 'leave') + '</button></div>';
-        if (!view) return h + '<p class="muted center">Connecting to room…</p>';
+            '<button class="mini" id="leave">' + (isHost ? 'close room' : 'leave') + '</button></div>';
+        if (!view) return h + '<p class="muted center">Joining room…</p>';
         if (!view.game) return h + renderLobby(view);
         var g = SDG.games[view.gameId];
         var offline = view.players.filter(function (p) { return !p.connected; });
         if (offline.length) h += '<div class="small warn">Offline: ' + offline.map(function (p) { return esc(p.name); }).join(', ') + '</div>';
-        h += '<div class="game ' + view.gameId + '">' + g.render(view.game, { me: view.you, isHost: view.hostId === view.you, ui: ui }) + '</div>';
-        if (view.hostId === view.you) {
+        h += '<div class="game ' + view.gameId + '">' + g.render(view.game, { me: view.you, isHost: isHost, ui: ui }) + '</div>';
+        if (isHost) {
             h += '<button class="btn subtle" ' + SDG.act({ type: 'room:lobby' }) +
                 (view.game.phase === 'over' ? '>back to lobby' : ' data-confirm="End this game for everyone and return to the lobby?">end game') + '</button>';
         } else if (view.game.phase === 'over') {
@@ -583,7 +305,6 @@
         return h;
     }
 
-    var qr = null;
     function render() {
         var focused = document.activeElement && document.activeElement.id;
         var scroll = window.scrollY;
@@ -615,7 +336,7 @@
         switch (el.id) {
             case 'join': return doJoin();
             case 'host': return doHost();
-            case 'resume': return hostResume(store.get('host'));
+            case 'rejoin': var s = store.get('session'); return s && doJoin(s.code, s.name);
             case 'leave': return leave();
             case 'share': return navigator.share({ title: 'Join my game', url: joinLink(view.code) }).catch(function () { });
             case 'copy':
@@ -625,7 +346,6 @@
 
     document.addEventListener('change', function (e) {
         var el = e.target;
-        if (el.id === 'relay') return el.checked ? store.set('relay', true) : store.del('relay');
         if (el.dataset.opt) sendAction({ type: 'room:option', key: el.dataset.opt, value: el.type === 'checkbox' ? el.checked : el.value });
     });
 
@@ -633,44 +353,18 @@
         if (e.key === 'Enter' && (e.target.id === 'code' || e.target.id === 'name')) doJoin();
     });
 
-    function readName() {
-        var name = cleanName(document.getElementById('name').value);
-        if (!name) { toast('Enter your name first'); document.getElementById('name').focus(); return null; }
-        store.set('name', name);
-        return name;
-    }
-
-    function doJoin() {
-        var name = readName();
-        if (!name) return;
-        var code = document.getElementById('code').value.toUpperCase().replace(/[^A-Z]/g, '');
-        if (code.length !== 4) { toast('Room codes are 4 letters'); return; }
-        var saved = store.get('host');
-        if (saved && saved.code === code) return hostResume(saved);
-        store.del('host');
-        clientJoin(code, name);
-    }
-
-    function doHost() {
-        var name = readName();
-        if (!name) return;
-        var saved = store.get('host');
-        if (saved && saved.game && !confirm('Start a new room? Your unfinished game in room ' + saved.code + ' will be lost.')) return;
-        store.del('client');
-        hostCreate(name);
-    }
-
     // ---------- boot ----------
 
     (function boot() {
-        if (!window.Peer) {
-            app.innerHTML = '<div class="card banner">Couldn’t load the networking library. Check your connection and reload.</div>';
-            return;
-        }
         var code = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
-        var savedHost = store.get('host'), savedClient = store.get('client');
-        if (code && savedHost && savedHost.code === code) return hostResume(savedHost);
-        if (code && savedClient && savedClient.code === code) return clientJoin(code, savedClient.name, savedClient.pid);
+        var saved = store.get('session');
         render();
+        // Reloaded mid-game: rejoin automatically.
+        if (code && saved && saved.code === code) {
+            screen = 'room';
+            session = saved;
+            render();
+            doJoin(code, saved.name);
+        }
     })();
 })();
